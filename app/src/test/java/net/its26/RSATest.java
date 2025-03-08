@@ -1,0 +1,79 @@
+package net.its26;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.math.BigInteger;
+
+class RSATest {
+    @Test void squareAndMultiply() {
+
+        BigInteger base = new BigInteger("34");
+        BigInteger exponent = new BigInteger("12");
+
+        BigInteger result = RSA.squareAndMultiply(base, exponent);
+        assertEquals(new BigInteger("2386420683693101056"), result);
+
+    }
+
+    @Test void squareAndMultiplyModulus()
+    {
+        BigInteger base = new BigInteger("34");
+        BigInteger exponent = new BigInteger("12");
+        BigInteger modulus = new BigInteger("43");
+        BigInteger result = RSA.squareAndMultiplyModulus(base, exponent, modulus);
+        assertEquals(new BigInteger("16"), result);
+    }
+
+    @Test void testMillerRabin()
+    {
+        assertEquals(true, RSA.testMillerRabin(BigInteger.ONE, 10));
+        assertEquals(true, RSA.testMillerRabin(BigInteger.TWO, 10));
+        assertEquals(true, RSA.testMillerRabin(new BigInteger("3"), 10));
+        assertEquals(false, RSA.testMillerRabin(new BigInteger("4"), 10));
+        assertEquals(true, RSA.testMillerRabin(new BigInteger("5"), 10));
+        assertEquals(true, RSA.testMillerRabin(new BigInteger("9973"), 10));        
+    }
+
+    @Test void testGeneratePrimeSmall()
+    {
+        BigInteger twoBitPrime = RSA.provablePrimeMaurer(2);
+        // may only be two or three
+        assertTrue(twoBitPrime.equals(BigInteger.TWO) || 
+            twoBitPrime.equals(BigInteger.TWO.add(BigInteger.ONE)));
+
+        // probabilistic tests
+
+        BigInteger Prime19BitMin = new BigInteger("262144");
+        BigInteger Prime19BitMax = new BigInteger("524287");
+
+        for (long i = 0; i < 100; i++)
+        {
+            BigInteger prime = RSA.provablePrimeMaurer(19);
+            assertTrue(prime.isProbablePrime(10));
+            assertTrue(RSA.testMillerRabin(prime, 10));
+            assertTrue(Prime19BitMin.compareTo(prime) <= 0);
+            assertTrue(Prime19BitMax.compareTo(prime) >= 0);
+        }
+    }
+
+    @Test void testGeneratePrimeLarge()
+    {
+        int primeBitLen = 2048;
+
+        BigInteger min = BigInteger.ONE.shiftLeft(primeBitLen - 1);
+        BigInteger max = min.shiftLeft(1).subtract(BigInteger.ONE);
+
+        for (int idx = 0; idx < 2; idx++)
+        {
+            BigInteger largePrime = RSA.provablePrimeMaurer(primeBitLen);
+            System.out.println("Prime #" + Integer.valueOf(idx));
+            System.out.println(largePrime.toString(10));
+            assertTrue(RSA.testMillerRabin(largePrime, 10)); 
+            assertTrue(min.compareTo(largePrime) <= 0);
+            assertTrue(max.compareTo(largePrime) >= 0);    
+        }
+
+    }
+}
