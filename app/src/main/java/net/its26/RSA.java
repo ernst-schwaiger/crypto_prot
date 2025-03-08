@@ -2,6 +2,7 @@ package net.its26;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Optional;
 import java.security.SecureRandom;
 
@@ -187,7 +188,7 @@ public final class RSA
         BigInteger ret = BigInteger.ONE;
         if (k < MAX_BITS_PRIME_FACTORIZATION)
         {
-            ret = generatePrimeSmall(k);
+            ret = getSmallPrime(k);
         }
         else
         {
@@ -264,47 +265,35 @@ public final class RSA
         return r;
     }
 
-    private static BigInteger generatePrimeSmall(long k)
+    private static BigInteger getSmallPrime(long k)
     {
         assert(k > 1);
         assert(k < MAX_BITS_PRIME_FACTORIZATION);
 
-        BigInteger min = BigInteger.ONE.shiftLeft((int)k - 1);
-        BigInteger max = min.shiftLeft(1).subtract(BigInteger.ONE);
+        int min = 1 << (k - 1);
 
-        // FIXME: Since we have already generated all primes with
-        // 1..k bits, we simply have to pick a random index in the
-        // generated primes array and pick the element!
-        while (true)
+        int minIdx = Collections.binarySearch(FIRST_PRIMES, Integer.valueOf(min));
+        if (minIdx < 0)
         {
-            BigInteger random = getRandom(min, max);
-            long rnd = random.intValue();
-
-            if (isSmallPrime(rnd))
-            {
-                return BigInteger.valueOf(rnd);
-            }
+            minIdx = (minIdx + 1) * - 1;
         }
-    }
 
-    public static boolean isSmallPrime(long val)
-    {
-        boolean ret = false;
-        assert(val <= FIRST_PRIMES.get(FIRST_PRIMES.size() - 1).longValue());
-
-        for (Integer smallPrime : FIRST_PRIMES)
+        int max = (min << 1) - 1;
+        int maxIdx = Collections.binarySearch(FIRST_PRIMES, Integer.valueOf(max));
+        if (maxIdx < 0)
         {
-            if (smallPrime.longValue() == val)
+            maxIdx = (maxIdx + 1) * - 1;
+            if (maxIdx >= FIRST_PRIMES.size())
             {
-                ret = true;
-                break;
+                maxIdx = FIRST_PRIMES.size() - 1;
             }
         }
 
-        return ret;
+        int randomIdx = getRandom(BigInteger.valueOf(minIdx), BigInteger.valueOf(maxIdx)).intValue();
+        return BigInteger.valueOf(FIRST_PRIMES.get(randomIdx).intValue());
     }
 
-    public static boolean checkPrimeUpToLimit(BigInteger val, long checkLimit)
+    private static boolean checkPrimeUpToLimit(BigInteger val, long checkLimit)
     {
         boolean isPrime = false;
 
