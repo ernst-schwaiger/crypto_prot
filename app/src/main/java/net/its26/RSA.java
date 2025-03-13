@@ -7,91 +7,14 @@ import java.util.Collections;
 import java.util.Optional;
 import java.security.SecureRandom;
 
-
-final class Pair<F,L>
-{
-    public final F first;
-    public final L last;
-
-    public Pair(F first, L last)
-    {
-        assert(first != null);
-        assert(last != null);
-        this.first = first;
-        this.last = last;
-    }
-
-    @SuppressWarnings("rawtypes")
-    @Override
-    public boolean equals(Object other)
-    {
-        if (this == other)
-        {
-            return true;
-        }
-
-        boolean ret = false;
-
-        if (other instanceof Pair)
-        {
-            Pair o = (Pair)other;
-            ret = (o.first.equals(first)) && (o.last.equals(last));
-        }
-
-        return ret;
-    }
-
-    @Override
-    public int hashCode()
-    {
-        return first.hashCode() + last.hashCode();
-    }
-}
-
 public final class RSA 
 {
     private static final long MAX_BITS_PRIME_FACTORIZATION = 20;
     private static final ArrayList<Integer> FIRST_PRIMES = calculateFirstPrimes();
 
-    //private static final byte SINGLE_BYTE_ARRAY_ZERO[] = { 2 };
     private static final byte SINGLE_BYTE_ARRAY_ONE[] = { 1 };
 
     private RSA() {} // no instantiation
-
-    // public static byte[] crypt(BigInteger key, BigInteger modulus, byte inputData[])
-    // {
-    //     int keyLenBit = modulus.bitLength();
-    //     assert(keyLenBit % 8 == 0);
-    //     int numBytesCrypt = keyLenBit / 8;
-    //     // bytes not filling the complete modulus length at the end
-    //     int trailingBytes = (inputData.length % numBytesCrypt); 
-
-    //     if (trailingBytes > 0)
-    //     {
-    //         int numPaddingBytes = numBytesCrypt - trailingBytes;
-    //         byte tmp[] = new byte[inputData.length + numPaddingBytes];
-    //         System.arraycopy(inputData, 0, tmp, 0, inputData.length);
-    //         // Add padding
-    //         for (int idx = inputData.length; idx < tmp.length; idx++)
-    //         {
-    //             tmp[idx] = (byte)-1; // == 0xff
-    //         }
-
-    //         inputData = tmp;
-    //     }
-
-    //     BigInteger res = BigInteger.ZERO;
-
-    //     for (int idx = 0; idx < inputData.length / numBytesCrypt; idx++)
-    //     {
-    //         byte dataChunk[] = Arrays.copyOfRange(inputData, idx * numBytesCrypt, (idx + 1) * numBytesCrypt);
-    //         BigInteger val = new BigInteger(dataChunk);
-    //         val = squareAndMultiplyModulus(val, key, modulus);
-    //         res = res.shiftLeft(keyLenBit).add(val);
-    //     }
-
-    //     return res.toByteArray();
-    // }
 
     public static byte[] encrypt(BigInteger key, BigInteger modulus, byte message[])
     {
@@ -127,7 +50,7 @@ public final class RSA
 
 
     // taken from https://en.wikipedia.org/wiki/Optimal_asymmetric_encryption_padding
-    public static byte[] optimalAsymmetricEncryptionPadding(byte m[], int k)
+    private static byte[] optimalAsymmetricEncryptionPadding(byte m[], int k)
     {
         final byte lhash[] = padding_hash("".getBytes());
         final int hLen = lhash.length;
@@ -136,20 +59,20 @@ public final class RSA
         byte PS[] = new byte[PSLen];
         Arrays.fill(PS, 0, PSLen, (byte)0x00);
 
-        byte DB[] = concat(concat(concat(lhash, PS), SINGLE_BYTE_ARRAY_ONE), m);
+        byte DB[] = Common.concat(Common.concat(Common.concat(lhash, PS), SINGLE_BYTE_ARRAY_ONE), m);
         // Random seed in the range 0..uint32_max
-        byte seed[] = intToArray(getRandom(BigInteger.ZERO, BigInteger.ONE.shiftLeft(32).subtract(BigInteger.ONE)).intValue());
+        byte seed[] = Common.intTo4ByteArrayLE(Common.getRandom(BigInteger.ZERO, BigInteger.ONE.shiftLeft(32).subtract(BigInteger.ONE)).intValue());
 
         byte dbMask[] = mgf1(seed, DB.length);
         byte maskedDB[] = xor(dbMask, DB);
         byte seedMask[] = mgf1(maskedDB, seed.length);
         byte maskedSeed[] = xor(seed, seedMask);
 
-        byte ret[] = concat(concat(SINGLE_BYTE_ARRAY_ONE, maskedSeed), maskedDB);
+        byte ret[] = Common.concat(Common.concat(SINGLE_BYTE_ARRAY_ONE, maskedSeed), maskedDB);
         return ret;
     }
 
-    public static byte[] optimalAsymmetricEncryptionUnPadding(byte p[], int k)
+    private static byte[] optimalAsymmetricEncryptionUnPadding(byte p[], int k)
     {
         final byte lhash[] = padding_hash("".getBytes());
         final int hLen = lhash.length;
@@ -198,9 +121,9 @@ public final class RSA
 
         while (T.length < l)
         {
-            byte C[] = intToArray(counter);
-            byte Z_C[] = concat(Z, C);
-            T = concat(T, padding_hash(Z_C));
+            byte C[] = Common.intTo4ByteArrayLE(counter);
+            byte Z_C[] = Common.concat(Z, C);
+            T = Common.concat(T, padding_hash(Z_C));
             counter++;
         }
 
@@ -222,14 +145,6 @@ public final class RSA
         return ret;
     }
 
-    private static byte[] concat(byte first[], byte last[])
-    {
-        byte ret[] = new byte[first.length + last.length];
-        System.arraycopy(first, 0, ret, 0, first.length);
-        System.arraycopy(last, 0, ret, first.length, last.length);
-        return ret;
-    }
-
     private static byte[] padding_hash(byte data[])
     {
         // Do not use data.hashCode() directly, 
@@ -244,19 +159,8 @@ public final class RSA
             hashCode += tmp; 
         }
 
-        return intToArray((int)hashCode & 0xffffffff);
+        return Common.intTo4ByteArrayLE((int)hashCode & 0xffffffff);
     }
-
-    private static byte[] intToArray(int i)
-    {
-        byte ret[] = new byte[4];
-        ret[0]=(byte)((i >> 24) & 0xff);
-        ret[1]=(byte)((i >> 16) & 0xff);
-        ret[2]=(byte)((i >> 8) & 0xff);
-        ret[3]=(byte)(i & 0xff);
-        return ret;   
-    }
-
 
     // Generates a Private/Publlic Key Pair using two primes p, q of bit length k
     public static Pair<BigInteger, Pair<BigInteger, BigInteger>> generateKeyPair(long k)
@@ -286,7 +190,7 @@ public final class RSA
 
         while (true)
         {
-            BigInteger e = getRandom(e_min, e_max);
+            BigInteger e = Common.getRandom(e_min, e_max);
             if (gcd(phi_n, e).equals(BigInteger.ONE))
             {
                 return e;
@@ -341,7 +245,7 @@ public final class RSA
 
         while (exponent.bitCount() > 0)
         {
-            if (isOdd(exponent))
+            if (Common.isOdd(exponent))
             {
                 result = result.multiply(base).mod(modulus);
             }
@@ -353,7 +257,7 @@ public final class RSA
         return result;
     }
 
-    public static BigInteger gcd(BigInteger a, BigInteger b)
+    private static BigInteger gcd(BigInteger a, BigInteger b)
     {
         if (a.equals(BigInteger.ZERO))
         {
@@ -391,7 +295,7 @@ public final class RSA
         }
 
         // Weed out the even numbers in the beginning
-        if (!isOdd(n))
+        if (!Common.isOdd(n))
         {
             return false;
         }
@@ -407,7 +311,7 @@ public final class RSA
             BigInteger r = optSAndR.get().last;
             for (long i = 0; i < t; i++)
             {
-                BigInteger a = getRandom(BigInteger.TWO, n.subtract(BigInteger.TWO));
+                BigInteger a = Common.getRandom(BigInteger.TWO, n.subtract(BigInteger.TWO));
                 BigInteger y = squareAndMultiplyModulus(a, r, n);
 
                 if ((!y.equals(BigInteger.ONE)) && (!y.equals(n_1)))
@@ -469,7 +373,7 @@ public final class RSA
             while (!success)
             {
                 // random value in the range [I+1, 2*I]
-                BigInteger R = getRandom(I.add(BigInteger.ONE), I.multiply(BigInteger.TWO));
+                BigInteger R = Common.getRandom(I.add(BigInteger.ONE), I.multiply(BigInteger.TWO));
                 // n := 2*R*q + 1
                 BigInteger n = BigInteger.TWO.multiply(R).multiply(q).add(BigInteger.ONE);
                 
@@ -478,7 +382,7 @@ public final class RSA
                 if (nNotDivisibleUptoB)
                 {
                     // a := random in [2, n-2]
-                    BigInteger a = getRandom(BigInteger.TWO, n.subtract(BigInteger.TWO));
+                    BigInteger a = Common.getRandom(BigInteger.TWO, n.subtract(BigInteger.TWO));
                     // b:= a^(n-1) mod n
                     BigInteger b = squareAndMultiplyModulus(a, n.subtract(BigInteger.ONE), n);
 
@@ -552,7 +456,7 @@ public final class RSA
             }
         }
 
-        int randomIdx = getRandom(BigInteger.valueOf(minIdx), BigInteger.valueOf(maxIdx)).intValue();
+        int randomIdx = Common.getRandom(BigInteger.valueOf(minIdx), BigInteger.valueOf(maxIdx)).intValue();
         return BigInteger.valueOf(FIRST_PRIMES.get(randomIdx).intValue());
     }
 
@@ -560,7 +464,7 @@ public final class RSA
     {
         boolean isPrime = false;
 
-        if (isOdd(val))
+        if (Common.isOdd(val))
         {
             BigInteger squareRoot = val.sqrt();
             checkLimit = (squareRoot.compareTo(BigInteger.valueOf(checkLimit)) < 0 ) ? squareRoot.longValue() : checkLimit;
@@ -589,23 +493,6 @@ public final class RSA
         return isPrime;
     }
 
-    // gets a random BigInteger in the (closed) range [min, max]
-    private static BigInteger getRandom(BigInteger min, BigInteger max)
-    {
-        assert(min.compareTo(max) <= 0);
-        SecureRandom rnd = new SecureRandom();
-        BigInteger range = max.subtract(min);
-        int numRndBits = range.bitLength();
-        BigInteger ret = new BigInteger(numRndBits, rnd);
-
-        while (ret.compareTo(range) > 0)
-        {
-            ret = new BigInteger(numRndBits, rnd);
-        }
-
-        return ret.add(min);
-    }
-
     private static Optional<Pair<BigInteger, BigInteger>> getSAndR(BigInteger n)
     {
         Optional<Pair<BigInteger, BigInteger>> ret = Optional.empty();
@@ -615,7 +502,7 @@ public final class RSA
         while (twoExpS.compareTo(n) <= 0)
         {
             BigInteger divAndRemaind[] = n.divideAndRemainder(twoExpS);
-            if (divAndRemaind[1].equals(BigInteger.ZERO) && isOdd(divAndRemaind[0]))
+            if (divAndRemaind[1].equals(BigInteger.ZERO) && Common.isOdd(divAndRemaind[0]))
             {
                 ret = Optional.of(new Pair<>(BigInteger.valueOf(s), divAndRemaind[0]));
                 break;
@@ -626,11 +513,6 @@ public final class RSA
         }
 
         return ret;
-    }
-
-    private static boolean isOdd(BigInteger val)
-    {
-        return (val.and(BigInteger.ONE).equals(BigInteger.ONE));
     }
 
     private static ArrayList<Integer> calculateFirstPrimes()

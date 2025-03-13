@@ -126,14 +126,14 @@ public class SHA1
             H5 = (long)(H5 + abcde.E);
         }
 
-        byte tmp[] = concat(getIntAsBEByteArray(H1), getIntAsBEByteArray(H2));
-        tmp = concat(tmp, getIntAsBEByteArray(H3));
-        tmp = concat(tmp, getIntAsBEByteArray(H4));
-        tmp = concat(tmp, getIntAsBEByteArray(H5));
+        byte tmp[] = Common.concat(Common.longTo4ByteArrayBE(H1), Common.longTo4ByteArrayBE(H2));
+        tmp = Common.concat(tmp, Common.longTo4ByteArrayBE(H3));
+        tmp = Common.concat(tmp, Common.longTo4ByteArrayBE(H4));
+        tmp = Common.concat(tmp, Common.longTo4ByteArrayBE(H5));
         return tmp;
     }
 
-    public static long rotateLeft(long value, int positions) 
+    private static long rotateLeft(long value, int positions) 
     {
         return ((value << positions) | (value >>> (32 - positions))) & 0xffffffffl;
     }
@@ -179,7 +179,7 @@ public class SHA1
         return ret;
     }
 
-    public static byte[] pad(byte data[])
+    private static byte[] pad(byte data[])
     {
         // Pad to a bit length of 512 (== byte length of 64)
         int bytesBeyond64 = (data.length % 64);
@@ -198,44 +198,9 @@ public class SHA1
         // we assume that our data is not longer than 2^64 bits
         // Java arrays can hold at most 2 ^ 31 - 1 bytes anyways
         // at most 2 ^ 34 - 8 bits are supported. using a long is sufficient here
-        byte bAsBEByteArray[] = getLongAsBEByteArray(data.length * 8);
+        byte bAsBEByteArray[] = Common.longTo8ByteArrayBE(data.length * 8);
         System.arraycopy(bAsBEByteArray, 0, tmp, tmp.length - 8, bAsBEByteArray.length);
 
         return tmp;
-    }
-
-    private static byte[] getLongAsBEByteArray(long in)
-    {
-        byte ret[] = new byte[8];
-        Arrays.fill(ret, (byte)0x00);
-
-        int idx = 7;
-        while (in != 0)
-        {
-            ret[idx] = (byte)(in & 0xff);
-            idx--;
-            in = (in >> 8);
-        }
-
-        return ret;
-    }
-
-    private static byte[] getIntAsBEByteArray(long in)
-    {
-        byte ret[] = new byte[4];
-        ret[0] = (byte)((in >> 24) & 0xff);
-        ret[1] = (byte)((in >> 16) & 0xff);
-        ret[2] = (byte)((in >> 8) & 0xff);
-        ret[3] = (byte)(in & 0xff);
-        return ret;
-    }
-
-    // Fixme, copy/paste from RSA -> put into dedicated helper class
-    private static byte[] concat(byte first[], byte last[])
-    {
-        byte ret[] = new byte[first.length + last.length];
-        System.arraycopy(first, 0, ret, 0, first.length);
-        System.arraycopy(last, 0, ret, first.length, last.length);
-        return ret;
     }
 }
