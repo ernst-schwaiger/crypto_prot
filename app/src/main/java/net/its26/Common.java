@@ -8,6 +8,42 @@ import java.util.Arrays;
 public class Common 
 {
 
+    public static BigInteger squareAndMultiply(BigInteger base, BigInteger exponent)
+    {
+        BigInteger result = BigInteger.ONE;
+
+        while (exponent.bitCount() > 0)
+        {
+            if (exponent.and(BigInteger.ONE).equals(BigInteger.ONE))
+            {
+                result = result.multiply(base);
+            }
+
+            base = base.multiply(base);
+            exponent = exponent.divide(BigInteger.TWO);
+        }
+
+        return result;
+    }
+
+    public static BigInteger squareAndMultiplyModulus(BigInteger base, BigInteger exponent, BigInteger modulus)
+    {
+        BigInteger result = BigInteger.ONE;
+
+        while (exponent.bitCount() > 0)
+        {
+            if (Common.isOdd(exponent))
+            {
+                result = result.multiply(base).mod(modulus);
+            }
+
+            base = base.multiply(base).mod(modulus);
+            exponent = exponent.divide(BigInteger.TWO);
+        }
+
+        return result;
+    }
+
     // gets a random BigInteger in the (closed) range [min, max]
     public static BigInteger getRandom(BigInteger min, BigInteger max)
     {

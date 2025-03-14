@@ -4,6 +4,66 @@ import java.math.BigInteger;
 
 public class DSA 
 {
+    public static class PubKey
+    {
+        public final BigInteger p;
+        public final BigInteger q;
+        public final BigInteger alpha;
+        public final BigInteger y;
+
+        public PubKey(BigInteger p, BigInteger q, BigInteger alpha, BigInteger y)
+        {
+            this.p = p;
+            this.q = q;
+            this.alpha = alpha;
+            this.y = y;
+        }
+    }
+
+    public static class KeyPair
+    {
+        public final PubKey publicKey;
+        public final BigInteger privateKey;
+
+        public KeyPair(PubKey publicKey, BigInteger privateKey)
+        {
+            this.publicKey = publicKey;
+            this.privateKey = privateKey;
+        }
+
+    }
+
+    public static KeyPair generateKeyPair(int l)
+    {
+        Pair<BigInteger, BigInteger> pAndQ = generateNISTPrimes(l);
+        BigInteger p = pAndQ.first;
+        BigInteger q = pAndQ.last;
+        BigInteger alpha = findGenerator(p, q);
+        BigInteger a = Common.getRandom(BigInteger.ONE, q.subtract(BigInteger.ONE));
+        BigInteger y = Common.squareAndMultiplyModulus(alpha, a, p);
+
+        return new KeyPair(new PubKey(p,q,alpha,y),a);
+    }
+
+
+    // finds a generator for a cyclic group of order q in Z_p*.
+    // preconditions: q|(p-1)
+    public static BigInteger findGenerator(BigInteger p, BigInteger q)
+    {
+        assert(p.subtract(BigInteger.ONE).mod(q).equals(BigInteger.ZERO));
+        // quotient = (p-1)/q
+        BigInteger quotient = p.subtract(BigInteger.ONE).divide(q);
+
+        BigInteger alpha = BigInteger.ONE;
+        while (alpha.equals(BigInteger.ONE))
+        {
+            BigInteger g = Common.getRandom(BigInteger.ONE, p.subtract(BigInteger.ONE));
+            alpha = Common.squareAndMultiplyModulus(g, quotient, p);
+        }
+
+        return alpha;
+    }
+
     public static Pair<BigInteger, BigInteger> generateNISTPrimes(int l)
     {
         int L = 512 + 64 * l;

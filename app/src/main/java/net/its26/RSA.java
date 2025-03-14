@@ -19,7 +19,7 @@ public final class RSA
     public static byte[] encrypt(BigInteger key, BigInteger modulus, byte message[])
     {
         BigInteger val = new BigInteger(message);
-        BigInteger encrypted = squareAndMultiplyModulus(val, key, modulus);
+        BigInteger encrypted = Common.squareAndMultiplyModulus(val, key, modulus);
         byte ret[] = encrypted.toByteArray();
         return ret;
     } 
@@ -27,7 +27,7 @@ public final class RSA
     public static byte[] decrypt(BigInteger key, BigInteger modulus, byte ciphertext[])
     {
         BigInteger val = new BigInteger(ciphertext);
-        BigInteger decrypted = squareAndMultiplyModulus(val, key, modulus);
+        BigInteger decrypted = Common.squareAndMultiplyModulus(val, key, modulus);
         byte ret[] = decrypted.toByteArray();
         return ret;
     }
@@ -221,42 +221,6 @@ public final class RSA
         return (inverse.compareTo(BigInteger.ZERO) < 0) ? inverse.add(modulus) : inverse;
     }
 
-    public static BigInteger squareAndMultiply(BigInteger base, BigInteger exponent)
-    {
-        BigInteger result = BigInteger.ONE;
-
-        while (exponent.bitCount() > 0)
-        {
-            if (exponent.and(BigInteger.ONE).equals(BigInteger.ONE))
-            {
-                result = result.multiply(base);
-            }
-
-            base = base.multiply(base);
-            exponent = exponent.divide(BigInteger.TWO);
-        }
-
-        return result;
-    }
-
-    public static BigInteger squareAndMultiplyModulus(BigInteger base, BigInteger exponent, BigInteger modulus)
-    {
-        BigInteger result = BigInteger.ONE;
-
-        while (exponent.bitCount() > 0)
-        {
-            if (Common.isOdd(exponent))
-            {
-                result = result.multiply(base).mod(modulus);
-            }
-
-            base = base.multiply(base).mod(modulus);
-            exponent = exponent.divide(BigInteger.TWO);
-        }
-
-        return result;
-    }
-
     private static BigInteger gcd(BigInteger a, BigInteger b)
     {
         if (a.equals(BigInteger.ZERO))
@@ -312,7 +276,7 @@ public final class RSA
             for (long i = 0; i < t; i++)
             {
                 BigInteger a = Common.getRandom(BigInteger.TWO, n.subtract(BigInteger.TWO));
-                BigInteger y = squareAndMultiplyModulus(a, r, n);
+                BigInteger y = Common.squareAndMultiplyModulus(a, r, n);
 
                 if ((!y.equals(BigInteger.ONE)) && (!y.equals(n_1)))
                 {
@@ -366,7 +330,7 @@ public final class RSA
             BigInteger q = provablePrimeMaurer(((long)Math.floor(r * k)) + 1);
             // I := floor(2^(k - 1)/2q)
             BigInteger I = 
-                squareAndMultiply(BigInteger.TWO, BigInteger.valueOf(k - 1))
+                Common.squareAndMultiply(BigInteger.TWO, BigInteger.valueOf(k - 1))
                 .divide(BigInteger.TWO.multiply(q));
 
             boolean success = false;
@@ -384,12 +348,12 @@ public final class RSA
                     // a := random in [2, n-2]
                     BigInteger a = Common.getRandom(BigInteger.TWO, n.subtract(BigInteger.TWO));
                     // b:= a^(n-1) mod n
-                    BigInteger b = squareAndMultiplyModulus(a, n.subtract(BigInteger.ONE), n);
+                    BigInteger b = Common.squareAndMultiplyModulus(a, n.subtract(BigInteger.ONE), n);
 
                     if (b.equals(BigInteger.ONE))
                     {
                         // b := a^(2R) mod n
-                        b = squareAndMultiplyModulus(a, BigInteger.TWO.multiply(R), n);
+                        b = Common.squareAndMultiplyModulus(a, BigInteger.TWO.multiply(R), n);
                         // d := gcd(b-1, n)
                         BigInteger d = gcd(b.subtract(BigInteger.ONE), n);
 

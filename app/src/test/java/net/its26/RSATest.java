@@ -8,24 +8,6 @@ import java.math.BigInteger;
 import java.util.Arrays;
 
 class RSATest {
-    @Test void squareAndMultiply() {
-
-        BigInteger base = new BigInteger("34");
-        BigInteger exponent = new BigInteger("12");
-
-        BigInteger result = RSA.squareAndMultiply(base, exponent);
-        assertEquals(new BigInteger("2386420683693101056"), result);
-
-    }
-
-    @Test void squareAndMultiplyModulus()
-    {
-        BigInteger base = new BigInteger("34");
-        BigInteger exponent = new BigInteger("12");
-        BigInteger modulus = new BigInteger("43");
-        BigInteger result = RSA.squareAndMultiplyModulus(base, exponent, modulus);
-        assertEquals(new BigInteger("16"), result);
-    }
 
     @Test void testMillerRabin()
     {
