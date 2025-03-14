@@ -46,6 +46,26 @@ public class DSATest
         BigInteger g2 = DSA.findGenerator(p2, q2);
         assertTrue(g2 != null);
         assertTrue(BigInteger.ONE.equals(Common.squareAndMultiplyModulus(g2, q2, p2)));
-    }    
+    }
+
+    @Test void signAndVerify()
+    {
+        // Message to sign
+        final byte m[] = "Hollariediedoedeldie!".getBytes();
+        // Counterfeit message
+        final byte m_c[] = "Hollariediedoedeldie?".getBytes();
+
+        for (int l = 0; l < 9; l++)
+        {
+            DSA.KeyPair keyPair = DSA.generateKeyPair(1);
+
+            Pair<BigInteger, BigInteger> signature = DSA.sign(m, keyPair);
+            boolean isValid = DSA.verifySignature(m, keyPair.publicKey, signature);
+            assertTrue(isValid);
+
+            boolean isValidCounterfeit = DSA.verifySignature(m_c, keyPair.publicKey, signature);
+            assertFalse(isValidCounterfeit);
+        }
+    }
 
 }

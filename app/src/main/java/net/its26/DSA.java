@@ -30,7 +30,47 @@ public class DSA
             this.publicKey = publicKey;
             this.privateKey = privateKey;
         }
+    }
 
+    public static Pair<BigInteger, BigInteger> sign(byte m[], KeyPair keyPair)
+    {
+        BigInteger k = Common.getRandom(BigInteger.ONE, keyPair.publicKey.q.subtract(BigInteger.ONE));
+        BigInteger r = Common.squareAndMultiplyModulus(keyPair.publicKey.alpha, k, keyPair.publicKey.p).mod(keyPair.publicKey.q);
+        BigInteger kInverseModQ = Common.getInverse(k, keyPair.publicKey.q);
+
+        BigInteger s = new BigInteger(1, SHA1.sha1(m))
+                            .add(r.multiply(keyPair.privateKey))
+                            .multiply(kInverseModQ)
+                            .mod(keyPair.publicKey.q);
+
+        return new Pair<>(r, s);
+    }
+
+    public static boolean verifySignature(byte m[], PubKey pubKey, Pair<BigInteger, BigInteger> signature)
+    {
+        BigInteger r = signature.first;
+        BigInteger s = signature.last;
+
+        boolean reject = 
+            (r.compareTo(BigInteger.ZERO) <= 0) ||
+            (r.compareTo(pubKey.q) >= 0) ||
+            (s.compareTo(BigInteger.ZERO) <= 0) ||
+            (s.compareTo(pubKey.q) >= 0);
+
+        if (reject)
+        {
+            return false;
+        }
+
+        BigInteger w = Common.getInverse(s, pubKey.q);
+        BigInteger u1 = w.multiply(new BigInteger(1, SHA1.sha1(m))).mod(pubKey.q);
+        BigInteger u2 = w.multiply(r).mod(pubKey.q);
+
+        BigInteger v1 = Common.squareAndMultiplyModulus(pubKey.alpha, u1, pubKey.p);
+        BigInteger v2 = Common.squareAndMultiplyModulus(pubKey.y, u2, pubKey.p);
+        BigInteger v = v1.multiply(v2).mod(pubKey.p).mod(pubKey.q);
+
+        return v.equals(r);
     }
 
     public static KeyPair generateKeyPair(int l)

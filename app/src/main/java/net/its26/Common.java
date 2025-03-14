@@ -2,11 +2,35 @@ package net.its26;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 // Commonly used methods
 public class Common 
 {
+    // https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm
+    public static BigInteger getInverse(BigInteger a, BigInteger modulus)
+    {
+        ArrayList<BigInteger> rs = new ArrayList<>(Arrays.asList(a, modulus));
+        ArrayList<BigInteger> ss = new ArrayList<>(Arrays.asList(BigInteger.ONE, BigInteger.ZERO));
+        ArrayList<BigInteger> ts = new ArrayList<>(Arrays.asList(BigInteger.ZERO, BigInteger.ONE));
+
+        while (rs.getLast().compareTo(BigInteger.ZERO) > 0)
+        {
+            BigInteger rq[] = rs.get(rs.size() - 2).divideAndRemainder(rs.getLast());
+            BigInteger q = rq[0];
+            BigInteger r = rq[1];
+            BigInteger s = ss.get(ss.size() - 2).subtract(ss.getLast().multiply(q));
+            BigInteger t = ts.get(ts.size() - 2).subtract(ts.getLast().multiply(q));
+            rs.add(r);
+            ss.add(s);
+            ts.add(t);
+        }
+
+        BigInteger inverse = ss.get(ss.size() - 2);
+
+        return (inverse.compareTo(BigInteger.ZERO) < 0) ? inverse.add(modulus) : inverse;
+    }    
 
     public static BigInteger squareAndMultiply(BigInteger base, BigInteger exponent)
     {

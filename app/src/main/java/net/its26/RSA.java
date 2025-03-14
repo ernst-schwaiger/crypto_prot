@@ -172,7 +172,7 @@ public final class RSA
         BigInteger phi_n = p.subtract(BigInteger.ONE).multiply(q.subtract(BigInteger.ONE));
 
         BigInteger e = generateE(phi_n);   
-        BigInteger d = getInverse(e, phi_n);
+        BigInteger d = Common.getInverse(e, phi_n);
 
         assert(e.multiply(d).mod(phi_n).equals(BigInteger.ONE));
 
@@ -198,28 +198,28 @@ public final class RSA
         }
     }
 
-    private static BigInteger getInverse(BigInteger a, BigInteger modulus)
-    {
-        ArrayList<BigInteger> rs = new ArrayList<>(Arrays.asList(a, modulus));
-        ArrayList<BigInteger> ss = new ArrayList<>(Arrays.asList(BigInteger.ONE, BigInteger.ZERO));
-        ArrayList<BigInteger> ts = new ArrayList<>(Arrays.asList(BigInteger.ZERO, BigInteger.ONE));
+    // private static BigInteger getInverse(BigInteger a, BigInteger modulus)
+    // {
+    //     ArrayList<BigInteger> rs = new ArrayList<>(Arrays.asList(a, modulus));
+    //     ArrayList<BigInteger> ss = new ArrayList<>(Arrays.asList(BigInteger.ONE, BigInteger.ZERO));
+    //     ArrayList<BigInteger> ts = new ArrayList<>(Arrays.asList(BigInteger.ZERO, BigInteger.ONE));
 
-        while (rs.getLast().compareTo(BigInteger.ZERO) > 0)
-        {
-            BigInteger rq[] = rs.get(rs.size() - 2).divideAndRemainder(rs.getLast());
-            BigInteger q = rq[0];
-            BigInteger r = rq[1];
-            BigInteger s = ss.get(ss.size() - 2).subtract(ss.getLast().multiply(q));
-            BigInteger t = ts.get(ts.size() - 2).subtract(ts.getLast().multiply(q));
-            rs.add(r);
-            ss.add(s);
-            ts.add(t);
-        }
+    //     while (rs.getLast().compareTo(BigInteger.ZERO) > 0)
+    //     {
+    //         BigInteger rq[] = rs.get(rs.size() - 2).divideAndRemainder(rs.getLast());
+    //         BigInteger q = rq[0];
+    //         BigInteger r = rq[1];
+    //         BigInteger s = ss.get(ss.size() - 2).subtract(ss.getLast().multiply(q));
+    //         BigInteger t = ts.get(ts.size() - 2).subtract(ts.getLast().multiply(q));
+    //         rs.add(r);
+    //         ss.add(s);
+    //         ts.add(t);
+    //     }
 
-        BigInteger inverse = ss.get(ss.size() - 2);
+    //     BigInteger inverse = ss.get(ss.size() - 2);
 
-        return (inverse.compareTo(BigInteger.ZERO) < 0) ? inverse.add(modulus) : inverse;
-    }
+    //     return (inverse.compareTo(BigInteger.ZERO) < 0) ? inverse.add(modulus) : inverse;
+    // }
 
     private static BigInteger gcd(BigInteger a, BigInteger b)
     {

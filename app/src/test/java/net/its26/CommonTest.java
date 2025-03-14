@@ -25,4 +25,15 @@ public class CommonTest
         BigInteger result = Common.squareAndMultiplyModulus(base, exponent, modulus);
         assertEquals(new BigInteger("16"), result);
     }
+
+    @Test void getInverse()
+    {
+        BigInteger modulus = BigInteger.valueOf(13);
+        
+        for (BigInteger i = BigInteger.ONE; i.compareTo(modulus) < 0; i = i.add(BigInteger.ONE))
+        {
+            BigInteger inverse = Common.getInverse(i, modulus);
+            assertTrue(i.multiply(inverse).mod(modulus).equals(BigInteger.ONE));
+        }
+    }
 }
