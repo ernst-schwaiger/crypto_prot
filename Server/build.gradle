@@ -21,6 +21,8 @@ dependencies {
     // Use JUnit Jupiter for testing.
     testImplementation libs.junit.jupiter
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    
+    implementation(project(':cryptolib')) // Add lib as an app dependency
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -32,7 +34,7 @@ java {
 
 application {
     // Define the main class for the application.
-    mainClass = 'net.its26.App'
+    mainClass = 'net.its26.Server'
 }
 
 tasks.named('test') {
