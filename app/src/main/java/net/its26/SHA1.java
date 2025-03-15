@@ -37,41 +37,19 @@ public class SHA1
             return new ABCDE(t, A, rotateLeft(B, 30), C, D);
         }
 
-        @Override
-        public boolean equals(Object other)
-        {
-            if (other == this)
-            {
-                return true;
-            }
+        // add this for debugging
+        // @Override
+        // public String toString()
+        // {
+        //     StringBuilder b = new StringBuilder();
+        //     b.append("0x").append(Long.toHexString(A)).append(", ");
+        //     b.append("0x").append(Long.toHexString(B)).append(", ");
+        //     b.append("0x").append(Long.toHexString(C)).append(", ");
+        //     b.append("0x").append(Long.toHexString(D)).append(", ");
+        //     b.append("0x").append(Long.toHexString(E));
 
-            if (other instanceof ABCDE)
-            {
-                ABCDE o = (ABCDE)other;
-                return (A == o.A) && (B == o.B) && (C == o.C) && (D == o.D) && (E == o.E);
-            }
-
-            return false;
-        }
-
-        @Override
-        public int hashCode()
-        {
-            return (int)((A ^ B ^ C ^ D ^ E) & 0xffffffffl);
-        }
-
-        @Override
-        public String toString()
-        {
-            StringBuilder b = new StringBuilder();
-            b.append("0x").append(Long.toHexString(A)).append(", ");
-            b.append("0x").append(Long.toHexString(B)).append(", ");
-            b.append("0x").append(Long.toHexString(C)).append(", ");
-            b.append("0x").append(Long.toHexString(D)).append(", ");
-            b.append("0x").append(Long.toHexString(E));
-
-            return b.toString();
-        }
+        //     return b.toString();
+        // }
 
     }
 
