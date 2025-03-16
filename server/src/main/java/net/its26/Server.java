@@ -3,62 +3,102 @@
  */
 package net.its26;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Path;
-import java.security.GeneralSecurityException;
-import java.security.NoSuchAlgorithmException;
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Optional;
+
 
 public class Server 
 {
     private static final String PATH_CERT_ROOT = "/home/ernst/projects/KryptoProt/crypto_prot/KeysAndCerts/rootCA.crt";
     private static final String PATH_CERT_SERVER = "/home/ernst/projects/KryptoProt/crypto_prot/KeysAndCerts/serverCert.crt";
+    private static final String PATH_KEY_SERVER = "/home/ernst/projects/KryptoProt/crypto_prot/KeysAndCerts/serverCert.key";
 
 
     public static void main(String[] args) 
     {
-        Optional<X509Certificate> optCertRoot = createCertificate(PATH_CERT_ROOT);
-        Optional<X509Certificate> optCertServer = createCertificate(PATH_CERT_SERVER);
+        // String argString = String.join(" ", args);
+        // System.out.println("Args provided: " + argString);
+        //doVerifyCerts();
 
-        if (optCertRoot.isPresent() && optCertServer.isPresent())
-        {
-            PublicKey rootPublicKey = optCertRoot.get().getPublicKey();
-            try
-            {
-                optCertServer.get().verify(rootPublicKey);
-                String licenseAsBytes = Common.getByteArrayAsString(optCertServer.get().getEncoded());
-                System.out.println(licenseAsBytes);
-            }
-            catch (GeneralSecurityException e)
-            {
-                System.err.println("Failed to verify certificate!");
-            }
+        // System.out.println("Listening on port: 12345...");
+        // listenSocket();
 
-        }
-
-        System.out.println("Certificate verified successfully.");
-
+        doVerifyCertsEncryptDecrypt();
     }
 
-    private static Optional<X509Certificate> createCertificate(String path)
+    private static void listenSocket()
     {
-        X509Certificate cert = null;
-        try (InputStream inStrm = new FileInputStream(path))
-        {
-            CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            cert = (X509Certificate)cf.generateCertificate(inStrm);
-        }
-        catch(IOException | CertificateException e)
-        {
-            System.err.println("Could not open certificate file: " + e.toString());
-        }
+        final int PORT = 12345; // Define the port to listen on
+        
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            System.out.println("Server is listening on port " + PORT);
 
-        return Optional.ofNullable(cert);
+            while (true) 
+            {
+                // Accept an incoming client connection
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("New client connected: " + clientSocket.getInetAddress());
+
+                // Create a BufferedReader to read input from the client
+                BufferedReader reader = new BufferedReader(
+                        new InputStreamReader(clientSocket.getInputStream())
+                );
+
+                // Read and print the client's input
+                String message;
+                while ((message = reader.readLine()) != null) 
+                {
+                    System.out.println("Received: " + message);
+                }
+
+                // Close the client socket once the communication is done
+                clientSocket.close();
+                System.out.println("Client disconnected.");
+            }
+        }
+        catch (Exception e) 
+        {
+            e.printStackTrace();
+        }
+    }
+
+    private static void doVerifyCertsEncryptDecrypt()
+    {
+        Optional<X509Certificate> optCertRoot = ClientServer.createCertificate(PATH_CERT_ROOT);
+        Optional<X509Certificate> optCertServer = ClientServer.createCertificate(PATH_CERT_SERVER);
+        Optional<PrivateKey> optPrivateKeyServer = ClientServer.readPrivateKey(PATH_KEY_SERVER);
+
+        if (optCertRoot.isPresent() && optCertServer.isPresent() && optPrivateKeyServer.isPresent())
+        {
+            boolean isCertValid = ClientServer.verifyCertificate(optCertServer.get(), optCertRoot.get());
+
+            if (!isCertValid)
+            {
+                System.err.println("Certificate is not valid, stopping!");
+            }
+            else
+            {
+                System.out.println("Certificate verified successfully.");
+                PublicKey publicKeyServer = optCertServer.get().getPublicKey();
+
+                String mySecretText = "Hollariediedoedeldie!";
+                Optional<byte[]> cipherText = ClientServer.encryptRSA(mySecretText.getBytes(), publicKeyServer);
+                if (cipherText.isPresent())
+                {
+                    Optional<byte[]> clearText = ClientServer.decryptRSA(cipherText.get(), optPrivateKeyServer.get());
+    
+                    if (clearText.isPresent())
+                    {
+                        System.out.println("Cleartext is: " + new String(clearText.get()));
+                    }
+                }    
+            }
+        }
     }
 }
