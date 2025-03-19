@@ -162,7 +162,7 @@ public final class RSA
         return Common.intTo4ByteArrayLE((int)hashCode & 0xffffffff);
     }
 
-    // Generates a Private/Publlic Key Pair using two primes p, q of bit length k
+    // Generates a Private/Public Key Pair using two primes p, q of bit length k
     public static Pair<BigInteger, Pair<BigInteger, BigInteger>> generateKeyPair(long k)
     {
         BigInteger p = provablePrimeMaurer(k);

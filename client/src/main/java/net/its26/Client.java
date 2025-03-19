@@ -3,33 +3,158 @@
  */
 package net.its26;
 
-import java.io.OutputStream;
-import java.io.PrintWriter;
+import java.io.IOException;
+import java.math.BigInteger;
 import java.net.Socket;
+import java.security.PrivateKey;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.CertificateNotYetValidException;
+import java.security.cert.X509Certificate;
+import java.util.Optional;
 
 public class Client 
 {
-    public static void main(String[] args) 
+    private static final String PATH_CERT_ROOT = "/home/ernst/projects/KryptoProt/crypto_prot/KeysAndCerts/rootCA.crt";
+    private static final String PATH_CERT_CLIENT = "/home/ernst/projects/KryptoProt/crypto_prot/KeysAndCerts/clientCert.crt";
+    private static final String PATH_KEY_CLIENT = "/home/ernst/projects/KryptoProt/crypto_prot/KeysAndCerts/clientCert.key";
+    private static final int SERVER_PORT = 12345;
+    private static final String SERVER_IP = "localhost"; // Change to server's hostname or IP
+
+    private static class ClientApp
     {
-        String argsJoined = String.join(" ", args);
-        sendMessage(argsJoined);
+        enum ClientState
+        {
+            SEND_MSG01,
+            WAIT_MSG02,
+            WAIT_MSG04,
+            WAIT_MSG06,
+            TERMINATED
+        }
+
+        private final Socket socket;
+        private final X509Certificate rootCertificate;
+        private final X509Certificate clientCertificate;
+        private final PrivateKey clientPrivateKey;
+        private final Integer clientRandom;
+
+        private ClientState state;
+        private Optional<Integer> serverRandom;
+        private Optional<X509Certificate> serverCertificate;
+
+        public ClientApp(Socket socket, X509Certificate rootCertificate, X509Certificate clientCertificate, PrivateKey clientPrivateKey)
+        {
+            this.socket = socket;
+            this.rootCertificate = rootCertificate;
+            this.clientCertificate = clientCertificate;
+            this.clientPrivateKey = clientPrivateKey;
+            this.clientRandom = generateRandom();
+
+            this.state = ClientState.SEND_MSG01;
+            this.serverRandom = Optional.empty();
+            this.serverCertificate = Optional.empty();
+        }
+
+        public void doProtocol()
+        {
+            try
+            {
+                // This message starts the protocol
+                sendMsg01();
+
+                while(state != ClientState.TERMINATED)
+                {
+                    byte rxMessage[] = ClientServer.receiveMessage(socket.getInputStream());
+                    switch(state)
+                    {
+                        case WAIT_MSG02:
+                            processMsg02(rxMessage);
+                        break;
+                        case WAIT_MSG04:
+                        break;
+                        case WAIT_MSG06:
+                        break;
+                        case TERMINATED:
+                        case SEND_MSG01:
+                        default:
+                            assert(false);
+                    }
+                }
+            }
+            catch(IOException e)
+            {
+                System.err.println(e.getMessage());
+            }            
+        }
+
+        private void sendMsg01() throws IOException
+        {
+            byte payload[] = ClientServer.generateMsg01ClientServer(clientRandom);
+            ClientServer.sendMessage(payload, socket.getOutputStream());
+            state = ClientState.WAIT_MSG02;
+            log("Sent Msg01: " + Common.getByteArrayAsString(payload));
+        }
+
+        private void processMsg02(byte rxMessage[]) throws IOException
+        {
+            log("Msg02 received successfully.");
+            state = ClientState.TERMINATED; // Bail out per default
+            Optional<Pair<X509Certificate, Integer>> optServerCertAndRnd = 
+                ClientServer.parseMsg02ServerClient(rxMessage, clientRandom);
+
+            if (optServerCertAndRnd.isPresent() && 
+                ClientServer.verifyCertificate(optServerCertAndRnd.get().first, rootCertificate, "server.foobar.org"))
+            {
+                this.serverCertificate = Optional.of(optServerCertAndRnd.get().first);
+                this.serverRandom = Optional.of(optServerCertAndRnd.get().last.intValue());
+                Optional<byte[]> txMessage = 
+                    ClientServer.generateMsg03ClientServer(clientRandom, serverRandom.get().intValue(), clientCertificate, clientPrivateKey);
+                
+                if (txMessage.isPresent())
+                {
+                    ClientServer.sendMessage(txMessage.get(), socket.getOutputStream());
+                    state = ClientState.WAIT_MSG04;
+                    log("Sent Msg03: " + Common.getByteArrayAsString(txMessage.get()));                    
+                }
+            }
+        }
+
+        private int generateRandom()
+        {
+            BigInteger rnd = Common.getRandom(BigInteger.ZERO, BigInteger.ONE.shiftLeft(31).subtract(BigInteger.ONE));
+            return rnd.intValue();
+        }
+
+        private void log(String message)
+        {
+            System.out.println(message);            
+            System.out.flush();
+        }        
     }
 
-    private static void sendMessage(String message)
+
+    public static void main(String[] args) 
     {
+        final Optional<X509Certificate> optCertRoot = ClientServer.createCertificate(PATH_CERT_ROOT);
+        final Optional<X509Certificate> optCertClient = ClientServer.createCertificate(PATH_CERT_CLIENT);
+        final Optional<PrivateKey> optPrivateKeyClient = ClientServer.readPrivateKey(PATH_KEY_CLIENT);        
 
-        final String SERVER_HOST = "localhost"; // Change to server's hostname or IP
-        final int SERVER_PORT = 12345; // Port the server is listening on
+        if (!optCertRoot.isPresent() || !optCertClient.isPresent() || !optPrivateKeyClient.isPresent())
+        {
+            System.err.println("Could not read certificates and/or private key file.");
+            return;
+        }
 
-        try (Socket socket = new Socket(SERVER_HOST, SERVER_PORT)) {
+        doProtocol(optCertRoot.get(), optCertClient.get(), optPrivateKeyClient.get());
+    }
+
+    private static void doProtocol(X509Certificate certRoot, X509Certificate certClient, PrivateKey privKeyClient)
+    {
+        try (Socket socket = new Socket(SERVER_IP, SERVER_PORT)) 
+        {
             System.out.println("Connected to the server.");
 
-            // Get the output stream to send data
-            OutputStream outputStream = socket.getOutputStream();
-            PrintWriter writer = new PrintWriter(outputStream, true);
-
-            // Send messages to the server
-            writer.println(message);
+            ClientApp clientApp = new ClientApp(socket, certRoot, certClient, privKeyClient);
+            clientApp.doProtocol();
         } 
         catch (Exception e) 
         {

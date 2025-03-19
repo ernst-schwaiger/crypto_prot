@@ -3,102 +3,185 @@
  */
 package net.its26;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.IOException;
+import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.PrivateKey;
-import java.security.PublicKey;
+import java.security.cert.CertificateExpiredException;
+import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.util.Optional;
-
 
 public class Server 
 {
     private static final String PATH_CERT_ROOT = "/home/ernst/projects/KryptoProt/crypto_prot/KeysAndCerts/rootCA.crt";
     private static final String PATH_CERT_SERVER = "/home/ernst/projects/KryptoProt/crypto_prot/KeysAndCerts/serverCert.crt";
     private static final String PATH_KEY_SERVER = "/home/ernst/projects/KryptoProt/crypto_prot/KeysAndCerts/serverCert.key";
+    private static final int LISTEN_PORT = 12345;
+
+    private static class ServerApp
+    {
+        enum ServerState
+        {
+            WAIT_MSG01,
+            WAIT_MSG03,
+            WAIT_MSG05,
+            WAIT_MSG07,
+            TERMINATED
+        }
+
+        private final Socket socket;
+        private final X509Certificate rootCertificate;
+        private final X509Certificate serverCertificate;
+        private final PrivateKey serverPrivateKey;
+        private final Integer serverRandom;
+        private final Pair<BigInteger, Pair<BigInteger, BigInteger>> homeMadePubPrivKeys;
+
+        private ServerState state;
+        private Optional<Integer> clientRandom;
+        private Optional<X509Certificate> clientCertificate;
+
+        public ServerApp(Socket socket, X509Certificate rootCertificate, X509Certificate serverCertificate, PrivateKey serverPrivateKey)
+        {
+            this.socket = socket;
+            this.rootCertificate = rootCertificate;
+            this.serverCertificate = serverCertificate;
+            this.serverPrivateKey = serverPrivateKey;
+            this.serverRandom = generateRandom();
+            this.homeMadePubPrivKeys = RSA.generateKeyPair(2048);
+
+            this.state = ServerState.WAIT_MSG01;
+            this.clientRandom = Optional.empty();
+            this.clientCertificate = Optional.empty();
+        }
+
+        public void doProtocol()
+        {
+            try
+            {
+                while(state != ServerState.TERMINATED)
+                {
+                    byte rxMessage[] = ClientServer.receiveMessage(socket.getInputStream());
+                    switch(state)
+                    {
+                        case WAIT_MSG01:
+                            processMsg01(rxMessage);
+                        break;
+                        case WAIT_MSG03:
+                            processMsg03(rxMessage);
+                        break;
+                        case WAIT_MSG05:
+                        break;
+                        case WAIT_MSG07:
+                        break;
+                        case TERMINATED:
+                        default:
+                            assert(false);
+                    }
+                }
+            }
+            catch(IOException e)
+            {
+                System.err.println(e.getMessage());
+            }
+        }
+
+        private void processMsg01(byte rxMessage[]) throws IOException
+        {
+            log("Msg01 received successfully:" + Common.getByteArrayAsString(rxMessage));
+            state = ServerState.TERMINATED; // Bail out per default
+            Optional<Integer> optRandom = ClientServer.parseMsg01ClientServer(rxMessage);
+            if (optRandom.isPresent())
+            {
+                this.clientRandom = optRandom;
+                Optional<byte[]> txMessage = ClientServer.generateMsg02ServerClient(clientRandom.get().intValue(), serverRandom.intValue(), serverCertificate, serverPrivateKey);
+                if (txMessage.isPresent())
+                {
+                    ClientServer.sendMessage(txMessage.get(), socket.getOutputStream());
+                    state = ServerState.WAIT_MSG03;
+                    log("Sent Msg02: " + Common.getByteArrayAsString(txMessage.get()));
+                }
+            }
+        }
+
+        private void processMsg03(byte rxMessage[]) throws IOException
+        {
+            log("Msg03 received successfully:" + Common.getByteArrayAsString(rxMessage));
+            state = ServerState.TERMINATED; // Bail out per default
+            Optional<X509Certificate> optClientCert = ClientServer.parseMsg03ClientServer(rxMessage, serverRandom.intValue(), clientRandom.get().intValue());
+            if (optClientCert.isPresent() && 
+                ClientServer.verifyCertificate(optClientCert.get(), rootCertificate, "client.foobar.org"))
+            {
+                this.clientCertificate = optClientCert;
+                Optional<byte[]> txMessage = 
+                    ClientServer.generateMsg04ServerClient(homeMadePubPrivKeys.last, serverPrivateKey);
+                
+                if (txMessage.isPresent())
+                {
+                    ClientServer.sendMessage(txMessage.get(), socket.getOutputStream());
+                    state = ServerState.WAIT_MSG05;
+                    log("Sent Msg04: " + Common.getByteArrayAsString(txMessage.get()));
+                }
+            }
+        }
+
+        private int generateRandom()
+        {
+            BigInteger rnd = Common.getRandom(BigInteger.ZERO, BigInteger.ONE.shiftLeft(31).subtract(BigInteger.ONE));
+            return rnd.intValue();
+        }
+
+        private void log(String message)
+        {
+            System.out.println(message);            
+            System.out.flush();
+        }
+
+    };
 
 
     public static void main(String[] args) 
     {
-        // String argString = String.join(" ", args);
-        // System.out.println("Args provided: " + argString);
-        //doVerifyCerts();
+        final Optional<X509Certificate> optCertRoot = ClientServer.createCertificate(PATH_CERT_ROOT);
+        final Optional<X509Certificate> optCertServer = ClientServer.createCertificate(PATH_CERT_SERVER);
+        final Optional<PrivateKey> optPrivateKeyServer = ClientServer.readPrivateKey(PATH_KEY_SERVER);        
 
-        // System.out.println("Listening on port: 12345...");
-        // listenSocket();
+        if (!optCertRoot.isPresent() || !optCertServer.isPresent() || !optPrivateKeyServer.isPresent())
+        {
+            System.err.println("Could not read certificates and/or private key file.");
+            return;
+        }
 
-        doVerifyCertsEncryptDecrypt();
+        doProtocol(optCertRoot.get(), optCertServer.get(), optPrivateKeyServer.get());
     }
 
-    private static void listenSocket()
+    private static void doProtocol(X509Certificate certRoot, X509Certificate certServer, PrivateKey privKeyServer)
     {
-        final int PORT = 12345; // Define the port to listen on
-        
-        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
-            System.out.println("Server is listening on port " + PORT);
+        try (ServerSocket serverSocket = new ServerSocket(LISTEN_PORT)) 
+        {
+            System.out.println("Server is listening on port " + LISTEN_PORT);
+            System.out.flush();
 
             while (true) 
             {
                 // Accept an incoming client connection
                 Socket clientSocket = serverSocket.accept();
                 System.out.println("New client connected: " + clientSocket.getInetAddress());
+                System.out.flush();
 
-                // Create a BufferedReader to read input from the client
-                BufferedReader reader = new BufferedReader(
-                        new InputStreamReader(clientSocket.getInputStream())
-                );
-
-                // Read and print the client's input
-                String message;
-                while ((message = reader.readLine()) != null) 
-                {
-                    System.out.println("Received: " + message);
-                }
+                ServerApp serverApp = new ServerApp(clientSocket, certRoot, certServer, privKeyServer);
+                serverApp.doProtocol();
 
                 // Close the client socket once the communication is done
                 clientSocket.close();
                 System.out.println("Client disconnected.");
+                System.out.flush();                
             }
         }
         catch (Exception e) 
         {
             e.printStackTrace();
-        }
-    }
-
-    private static void doVerifyCertsEncryptDecrypt()
-    {
-        Optional<X509Certificate> optCertRoot = ClientServer.createCertificate(PATH_CERT_ROOT);
-        Optional<X509Certificate> optCertServer = ClientServer.createCertificate(PATH_CERT_SERVER);
-        Optional<PrivateKey> optPrivateKeyServer = ClientServer.readPrivateKey(PATH_KEY_SERVER);
-
-        if (optCertRoot.isPresent() && optCertServer.isPresent() && optPrivateKeyServer.isPresent())
-        {
-            boolean isCertValid = ClientServer.verifyCertificate(optCertServer.get(), optCertRoot.get());
-
-            if (!isCertValid)
-            {
-                System.err.println("Certificate is not valid, stopping!");
-            }
-            else
-            {
-                System.out.println("Certificate verified successfully.");
-                PublicKey publicKeyServer = optCertServer.get().getPublicKey();
-
-                String mySecretText = "Hollariediedoedeldie!";
-                Optional<byte[]> cipherText = ClientServer.encryptRSA(mySecretText.getBytes(), publicKeyServer);
-                if (cipherText.isPresent())
-                {
-                    Optional<byte[]> clearText = ClientServer.decryptRSA(cipherText.get(), optPrivateKeyServer.get());
-    
-                    if (clearText.isPresent())
-                    {
-                        System.out.println("Cleartext is: " + new String(clearText.get()));
-                    }
-                }    
-            }
         }
     }
 }

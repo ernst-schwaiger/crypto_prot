@@ -1,0 +1,9 @@
+AT
+Vienna
+Vienna
+foobar
+foobar
+client.foobar.org
+client@foobar.org
+foobar
+.

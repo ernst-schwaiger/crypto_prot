@@ -1,0 +1,7 @@
+AT
+Vienna
+Vienna
+foobar
+foobar
+root.foobar.org
+root@foobar.org
