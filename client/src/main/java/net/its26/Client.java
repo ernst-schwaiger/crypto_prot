@@ -7,8 +7,6 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.net.Socket;
 import java.security.PrivateKey;
-import java.security.cert.CertificateExpiredException;
-import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.util.Optional;
 
@@ -40,6 +38,7 @@ public class Client
         private ClientState state;
         private Optional<Integer> serverRandom;
         private Optional<X509Certificate> serverCertificate;
+        private Optional<Pair<BigInteger, BigInteger>> serverPubKey; // own homegrown pub key
 
         public ClientApp(Socket socket, X509Certificate rootCertificate, X509Certificate clientCertificate, PrivateKey clientPrivateKey)
         {
@@ -70,6 +69,7 @@ public class Client
                             processMsg02(rxMessage);
                         break;
                         case WAIT_MSG04:
+                            processMsg04(rxMessage);
                         break;
                         case WAIT_MSG06:
                         break;
@@ -114,6 +114,23 @@ public class Client
                     ClientServer.sendMessage(txMessage.get(), socket.getOutputStream());
                     state = ClientState.WAIT_MSG04;
                     log("Sent Msg03: " + Common.getByteArrayAsString(txMessage.get()));                    
+                }
+            }
+        }
+
+        private void processMsg04(byte rxMessage[]) throws IOException
+        {
+            state = ClientState.TERMINATED; // Bail out per default
+            serverPubKey = ClientServer.parseMsg04ServerClient(rxMessage, clientRandom, serverRandom.get().intValue(), serverCertificate.get());
+            if (serverPubKey.isPresent())
+            {
+                byte ciphertext[] = RSA.encrypt(serverPubKey.get().first, serverPubKey.get().last, "This is a secret message.".getBytes());
+                Optional<byte[]> txMessage = ClientServer.generateMsg05ClientServer(clientRandom, serverRandom.get().intValue(), ciphertext, clientPrivateKey);
+                if (txMessage.isPresent())
+                {
+                    ClientServer.sendMessage(txMessage.get(), socket.getOutputStream());
+                    state = ClientState.WAIT_MSG06;
+                    log("Sent Msg05: " + Common.getByteArrayAsString(txMessage.get()));
                 }
             }
         }

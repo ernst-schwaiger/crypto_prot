@@ -8,8 +8,6 @@ import java.math.BigInteger;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.security.PrivateKey;
-import java.security.cert.CertificateExpiredException;
-import java.security.cert.CertificateNotYetValidException;
 import java.security.cert.X509Certificate;
 import java.util.Optional;
 
@@ -72,6 +70,7 @@ public class Server
                             processMsg03(rxMessage);
                         break;
                         case WAIT_MSG05:
+                            processMsg05(rxMessage);
                         break;
                         case WAIT_MSG07:
                         break;
@@ -115,8 +114,7 @@ public class Server
             {
                 this.clientCertificate = optClientCert;
                 Optional<byte[]> txMessage = 
-                    ClientServer.generateMsg04ServerClient(homeMadePubPrivKeys.last, serverPrivateKey);
-                
+                    ClientServer.generateMsg04ServerClient(clientRandom.get().intValue(), serverRandom, homeMadePubPrivKeys.last, serverPrivateKey);
                 if (txMessage.isPresent())
                 {
                     ClientServer.sendMessage(txMessage.get(), socket.getOutputStream());
@@ -125,6 +123,21 @@ public class Server
                 }
             }
         }
+
+        private void processMsg05(byte rxMessage[]) throws IOException
+        {
+            log("Msg05 received successfully:" + Common.getByteArrayAsString(rxMessage));
+            state = ServerState.TERMINATED; // Bail out per default
+            Optional<byte[]> optCiphertext = ClientServer.parseMsg05ClientServer(rxMessage, clientRandom.get().intValue(), serverRandom.intValue(), clientCertificate.get());
+
+            if (optCiphertext.isPresent())
+            {
+                byte cleartext[] = RSA.decrypt(this.homeMadePubPrivKeys.first, this.homeMadePubPrivKeys.last.last, optCiphertext.get());
+                String clearText = new String(cleartext);
+                System.out.println("Clear Text: " + clearText);
+            }
+        }
+
 
         private int generateRandom()
         {

@@ -29,6 +29,98 @@ public class ClientServer
     private static final int SIZE_INT_BYTES = 4;
     private static final int SIZE_SHORT_BYTES = 2;
 
+    static class Serializer
+    {
+        public byte serialized[];
+
+        public Serializer()
+        {
+            this.serialized = new byte[0];
+        }
+
+        public Serializer ser1(int in)
+        {
+            byte tmp[] = new byte[serialized.length + 1];
+            System.arraycopy(serialized, 0, tmp, 0, serialized.length);
+            tmp[tmp.length - 1] = (byte)(in & 0xff);
+            serialized = tmp;
+            return this;
+        }
+
+        public Serializer ser4(int in)
+        {
+            byte tmp[] = new byte[serialized.length + SIZE_INT_BYTES];
+            System.arraycopy(serialized, 0, tmp, 0, serialized.length);
+
+            tmp[serialized.length] = (byte)((in >> 24) & 0xff);
+            tmp[serialized.length + 1] = (byte)((in >> 16) & 0xff);
+            tmp[serialized.length + 2] = (byte)((in >> 8) & 0xff);
+            tmp[serialized.length + 3] = (byte)(in & 0xff);   
+            serialized = tmp;
+            return this;
+        }
+
+        public Serializer serN(byte in[])
+        {
+            byte tmp[] = new byte[serialized.length + in.length];
+            System.arraycopy(serialized, 0, tmp, 0, serialized.length);
+            System.arraycopy(in, 0, tmp, serialized.length, in.length);
+            serialized = tmp;
+            return this;
+        }
+    }
+
+    static class Deserializer
+    {
+        private byte serialized[];
+
+        public Deserializer(byte in[])
+        {
+            this.serialized = new byte[in.length];
+            System.arraycopy(in, 0, serialized, 0, in.length);
+        }
+        
+        public byte dser1()
+        {
+            assert(serialized.length >= 1);
+            byte ret = serialized[0];
+            byte tmp[] = new byte[serialized.length - 1];
+            System.arraycopy(serialized, 1, tmp, 0, tmp.length);
+            serialized=tmp;
+            return ret;
+        }
+
+        public int dser4()
+        {
+            assert(serialized.length >= 4);
+            int ret = ((serialized[0] & 0xff) << 24) | 
+                ((serialized[1] & 0xff) << 16) | 
+                ((serialized[2] & 0xff) << 8) |
+                (serialized[3] & 0xff);
+
+            byte tmp[] = new byte[serialized.length - 4];
+            System.arraycopy(serialized, 4, tmp, 0, tmp.length);
+            serialized=tmp;
+            return ret;
+        }
+
+        public byte[] dserN(int n)
+        {
+            assert(serialized.length >= n);
+            byte ret[] = new byte[n];
+            System.arraycopy(serialized, 0, ret, 0, n);
+            byte tmp[] = new byte[serialized.length - n];
+            System.arraycopy(serialized, n, tmp, 0, serialized.length - n);
+            serialized=tmp;
+            return ret;            
+        }
+        
+        public int size()
+        {
+            return serialized.length;
+        }
+    }
+
 
     public static Optional<byte[]> encryptRSA(byte message[], PublicKey publicKey)
     {
@@ -156,43 +248,6 @@ public class ClientServer
         return ret;
     }
 
-    public static byte[] serializeKeyAndModulus(BigInteger key, BigInteger modulus)
-    {
-        byte keyBytes[] = key.toByteArray();
-        byte modulusBytes[] = modulus.toByteArray();
-
-        byte[] ret = new byte[keyBytes.length + modulusBytes.length + 4];
-        ret[0] = (byte)((keyBytes.length >> 8) & 0xff);
-        ret[1] = (byte)(keyBytes.length & 0xff);
-        ret[2] = (byte)((modulusBytes.length >> 8) & 0xff);
-        ret[3] = (byte)(modulusBytes.length & 0xff);
-        
-        System.arraycopy(keyBytes, 0, ret, 4, keyBytes.length);
-        System.arraycopy(modulusBytes, 0, ret, 4 + keyBytes.length, modulusBytes.length);
-
-        return ret;
-    }
-
-    public static Optional<Pair<BigInteger, BigInteger>> deserializeKeyAndModulus(byte[] serialized)
-    {
-        Optional<Pair<BigInteger, BigInteger>> ret = Optional.empty();
-
-        if (serialized.length > SIZE_SHORT_BYTES + SIZE_SHORT_BYTES)
-        {
-            int keyLenBytes = ((serialized[0] & 0xff) << 8) | (serialized[1] & 0xff);
-            int modulusLenBytes = ((serialized[2] & 0xff) << 8) | (serialized[3] & 0xff);
-
-            if (serialized.length == (keyLenBytes + modulusLenBytes + 4))
-            {
-                BigInteger key = new BigInteger(Arrays.copyOfRange(serialized, 4, 4 + keyLenBytes));
-                BigInteger modulus = new BigInteger(Arrays.copyOfRange(serialized, 4 + keyLenBytes, 4 + keyLenBytes + modulusLenBytes));
-                ret = Optional.of(new Pair<BigInteger, BigInteger>(key, modulus));
-            }
-        }
-
-        return ret;
-    }
-
     // Principal is a comma separated list of type <key>=<value>
     private static Optional<String> getFieldFromPrincipal(String principal, String keyName)
     {
@@ -232,7 +287,7 @@ public class ClientServer
         return ret;
     }
 
-    public static Optional<byte[]> generateMsg02ServerClient(int random_c, int random_s, X509Certificate cert, PrivateKey privateKey)
+    private static Optional<byte[]> generateMsg0203(int random_c, int random_s, X509Certificate cert, PrivateKey privateKey, int msgId)
     {
         Optional<byte[]> ret = Optional.empty();
 
@@ -240,7 +295,7 @@ public class ClientServer
         {
             byte certBuf[] = cert.getEncoded();
             byte toSign[] = new byte[1 + SIZE_INT_BYTES + SIZE_INT_BYTES + SIZE_INT_BYTES + certBuf.length];
-            toSign[0] = 2;
+            toSign[0] = (byte)(msgId & 0xff);
             serialize(toSign, random_s, 1);
             serialize(toSign, random_c, 1 + SIZE_INT_BYTES);
             serialize(toSign, certBuf.length, 1 + SIZE_INT_BYTES + SIZE_INT_BYTES);
@@ -253,6 +308,17 @@ public class ClientServer
         }
 
         return ret;
+
+    }
+
+    public static Optional<byte[]> generateMsg02ServerClient(int random_c, int random_s, X509Certificate cert, PrivateKey privateKey)
+    {
+        return generateMsg0203(random_c, random_s, cert, privateKey, 0x02);
+    }
+
+    public static Optional<byte[]> generateMsg03ClientServer(int random_c, int random_s, X509Certificate cert, PrivateKey privateKey)
+    {
+        return generateMsg0203(random_c, random_s, cert, privateKey, 0x03);
     }
 
     public static Optional<Pair<X509Certificate, Integer>> parseMsg02ServerClient(byte payload[], int random_c)
@@ -283,12 +349,6 @@ public class ClientServer
         return ret;
     }
 
-    public static Optional<byte[]> generateMsg03ClientServer(int random_c, int random_s, X509Certificate cert, PrivateKey privateKey)
-    {
-        // Payload is exactly the same, just sending the client certificate, and using the clients private key for signing
-        return generateMsg02ServerClient(random_c, random_s, cert, privateKey);
-    }
-
     public static Optional<X509Certificate> parseMsg03ClientServer(byte payload[], int random_s, int random_c)
     {
         Optional<X509Certificate> ret = Optional.empty();
@@ -304,9 +364,9 @@ public class ClientServer
                 (payload.length >= signedPayloadLength))
             {
                 byte signedPayload[] = Arrays.copyOfRange(payload, 0, signedPayloadLength);
-                byte signature[] = Arrays.copyOfRange(payload, signedPayloadLength, payload.length - signedPayloadLength);
+                byte signature[] = Arrays.copyOfRange(payload, signedPayloadLength, payload.length);
                 
-                Optional<X509Certificate> optCert = createCertificate(Arrays.copyOfRange(payload, 1 + 3 * SIZE_INT_BYTES, sizeCert));
+                Optional<X509Certificate> optCert = createCertificate(Arrays.copyOfRange(payload, 1 + 3 * SIZE_INT_BYTES, 1 + 3 * SIZE_INT_BYTES + sizeCert));
 
                 if (optCert.isPresent() && verifySignature(signedPayload, signature, optCert.get()))
                 {
@@ -319,12 +379,86 @@ public class ClientServer
         return ret;
     }
 
-    public static Optional<byte[]> generateMsg04ServerClient(Pair<BigInteger, BigInteger> pubKey, PrivateKey privateKey)
+    public static Optional<byte[]> generateMsg04ServerClient(int random_c, int random_s, Pair<BigInteger, BigInteger> pubKey, PrivateKey privateKey)
     {
-        // FIXME: Continue here: Send our homemade public key and sign it using the private key of the certificate
-        return Optional.empty();
+        byte pubKeyBytes[] = pubKey.first.toByteArray();
+        byte modulusBytes[] = pubKey.last.toByteArray();
+        Serializer s = new Serializer();
+        s.ser1(4).ser4(random_s).ser4(random_c).ser4(pubKeyBytes.length).ser4(modulusBytes.length).serN(pubKeyBytes).serN(modulusBytes);
+        Optional<byte[]> ret = appendSignature(s.serialized, privateKey);
+        return ret;
     }
 
+    public static Optional<Pair<BigInteger, BigInteger>> parseMsg04ServerClient(byte payload[], int random_c, int random_s, X509Certificate cert)
+    {
+        Optional<Pair<BigInteger, BigInteger>> ret = Optional.empty();
+
+        if ((payload.length >=  1 + SIZE_INT_BYTES * 4) && (payload[0] == 4))
+        {
+            Deserializer d = new Deserializer(payload);
+            d.dser1(); // consume 1st byte, we checked that one above
+            int randomServer = d.dser4();
+            int randomClient = d.dser4();
+            int sizePubKey = d.dser4();
+            int sizeModulus = d.dser4();
+
+            // FIXME: Potential Buffer overflow here!
+            byte pubKeyBytes[] = d.dserN(sizePubKey);
+            byte modulusBytes[] = d.dserN(sizeModulus);
+            int signedPayloadLength = (1 + 4 * SIZE_INT_BYTES + sizePubKey + sizeModulus);
+            
+            if ((random_s == randomServer) && (random_c == randomClient) && (sizePubKey > 0) && (sizeModulus > 0) &&
+                (payload.length >= signedPayloadLength))
+            {
+                Deserializer d2 = new Deserializer(payload);
+                byte signedPayload[] = d2.dserN(signedPayloadLength);
+                byte signature[] = d2.dserN(d2.size());
+                if (verifySignature(signedPayload, signature, cert))
+                {
+                    ret = Optional.of(new Pair<>(new BigInteger(1, pubKeyBytes), new BigInteger(1, modulusBytes)));
+                }
+            }
+        }
+
+        return ret;
+    }
+
+    public static Optional<byte[]> generateMsg05ClientServer(int random_c, int random_s, byte ciphertext[], PrivateKey privateKey)
+    {
+        Serializer s = new Serializer();
+        s.ser1(5).ser4(random_s).ser4(random_c).ser4(ciphertext.length).serN(ciphertext);
+        Optional<byte[]> ret = appendSignature(s.serialized, privateKey);
+        return ret;
+    }
+
+    public static Optional<byte[]> parseMsg05ClientServer(byte payload[], int random_c, int random_s, X509Certificate cert)
+    {
+        Optional<byte[]> ret = Optional.empty();
+        if ((payload.length >=  1 + SIZE_INT_BYTES * 3) && (payload[0] == 5))
+        {
+            Deserializer d = new Deserializer(payload);
+            d.dser1(); // consume first byte
+            int randomServer = d.dser4();
+            int randomClient = d.dser4();
+            int sizeCiphertext = d.dser4();
+            int signedPayloadLength = 1 + SIZE_INT_BYTES * 3 + sizeCiphertext;
+
+            if ((random_s == randomServer) && (random_c == randomClient) && (sizeCiphertext > 0) &&
+                (payload.length >= signedPayloadLength))            
+            {
+                byte ciphertext[] = d.dserN(sizeCiphertext);
+                Deserializer d2 = new Deserializer(payload);
+                byte signedPayload[] = d2.dserN(signedPayloadLength);
+                byte signature[] = d2.dserN(d2.size());
+                if (verifySignature(signedPayload, signature, cert))
+                {
+                    ret = Optional.of(ciphertext);
+                }
+            }
+        }
+
+        return ret;
+    }
 
     private static boolean verifySignature(byte payloadToVerify[], byte signatureBytes[], X509Certificate cert)
     {
@@ -366,7 +500,6 @@ public class ClientServer
         }
 
         return ret;
-
     }
 
     private static void serialize(byte buffer[], int val, int offset)
