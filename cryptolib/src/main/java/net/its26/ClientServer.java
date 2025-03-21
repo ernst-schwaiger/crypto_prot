@@ -440,6 +440,29 @@ public class ClientServer
         return ret;
     }
 
+    public static Optional<byte[]> generateMsg06ServerClient(int random_c, int random_s, Pair<BigInteger, BigInteger> dsaSignature, DSA.PubKey pubKey)
+    {
+        Serializer s = new Serializer();
+        s
+            .ser1(5)
+            .ser4(random_s)
+            .ser4(random_c)
+            .ser4(dsaSignature.first.toByteArray().length)
+            .ser4(dsaSignature.last.toByteArray().length)
+            .ser4(pubKey.p.toByteArray().length)
+            .ser4(pubKey.q.toByteArray().length)
+            .ser4(pubKey.alpha.toByteArray().length)
+            .ser4(pubKey.y.toByteArray().length)
+            .serN(dsaSignature.first.toByteArray())
+            .serN(dsaSignature.last.toByteArray())
+            .serN(pubKey.p.toByteArray())
+            .serN(pubKey.q.toByteArray())
+            .serN(pubKey.alpha.toByteArray())
+            .serN(pubKey.y.toByteArray());
+
+        return Optional.of(s.serialized);
+    }
+
     private static boolean verifySignature(byte payloadAndSignature[], int signedPayloadLen, X509Certificate cert)
     {
         assert(payloadAndSignature.length > signedPayloadLen);

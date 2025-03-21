@@ -25,7 +25,6 @@ public class Server
             WAIT_MSG01,
             WAIT_MSG03,
             WAIT_MSG05,
-            WAIT_MSG07,
             TERMINATED
         }
 
@@ -35,6 +34,7 @@ public class Server
         private final PrivateKey serverPrivateKey;
         private final Integer serverRandom;
         private final Pair<BigInteger, Pair<BigInteger, BigInteger>> homeMadePubPrivKeys;
+        private final DSA.KeyPair dsaKeyPair;
 
         private ServerState state;
         private Optional<Integer> clientRandom;
@@ -48,6 +48,7 @@ public class Server
             this.serverPrivateKey = serverPrivateKey;
             this.serverRandom = ClientServer.generateRandom();
             this.homeMadePubPrivKeys = RSA.generateKeyPair(2048);
+            dsaKeyPair = DSA.generateKeyPair(4); // Pick a value [0..8]
 
             this.state = ServerState.WAIT_MSG01;
             this.clientRandom = Optional.empty();
@@ -71,8 +72,6 @@ public class Server
                         break;
                         case WAIT_MSG05:
                             processMsg05(rxMessage);
-                        break;
-                        case WAIT_MSG07:
                         break;
                         case TERMINATED:
                         default:
@@ -127,14 +126,22 @@ public class Server
         private void processMsg05(byte rxMessage[]) throws IOException
         {
             log("Msg05 received successfully:" + Common.getByteArrayAsString(rxMessage));
-            state = ServerState.TERMINATED; // Bail out per default
+            state = ServerState.TERMINATED; // We are finished here anyways
             Optional<byte[]> optCiphertext = ClientServer.parseMsg05ClientServer(rxMessage, clientRandom.get().intValue(), serverRandom.intValue(), clientCertificate.get());
 
             if (optCiphertext.isPresent())
             {
                 byte cleartext[] = RSA.decrypt(this.homeMadePubPrivKeys.first, this.homeMadePubPrivKeys.last.last, optCiphertext.get());
-                String clearText = new String(cleartext);
-                System.out.println("Clear Text: " + clearText);
+                System.out.println("Clear Text: " + new String(cleartext));
+                Pair<BigInteger, BigInteger> dsaSignature = DSA.sign(cleartext, dsaKeyPair);
+
+                Optional<byte[]> txMessage = 
+                    ClientServer.generateMsg06ServerClient(clientRandom.get().intValue(), serverRandom, dsaSignature, dsaKeyPair.publicKey);
+                if (txMessage.isPresent())
+                {
+                    ClientServer.sendMessage(txMessage.get(), socket.getOutputStream());
+                    log("Sent Msg04: " + Common.getByteArrayAsString(txMessage.get()));
+                }                
             }
         }
 
