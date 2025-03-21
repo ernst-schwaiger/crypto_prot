@@ -46,7 +46,7 @@ public class Server
             this.rootCertificate = rootCertificate;
             this.serverCertificate = serverCertificate;
             this.serverPrivateKey = serverPrivateKey;
-            this.serverRandom = generateRandom();
+            this.serverRandom = ClientServer.generateRandom();
             this.homeMadePubPrivKeys = RSA.generateKeyPair(2048);
 
             this.state = ServerState.WAIT_MSG01;
@@ -138,19 +138,11 @@ public class Server
             }
         }
 
-
-        private int generateRandom()
-        {
-            BigInteger rnd = Common.getRandom(BigInteger.ZERO, BigInteger.ONE.shiftLeft(31).subtract(BigInteger.ONE));
-            return rnd.intValue();
-        }
-
         private void log(String message)
         {
             System.out.println(message);            
             System.out.flush();
         }
-
     };
 
 

@@ -27,7 +27,6 @@ import javax.crypto.Cipher;
 public class ClientServer 
 {
     private static final int SIZE_INT_BYTES = 4;
-    private static final int SIZE_SHORT_BYTES = 2;
 
     static class Serializer
     {
@@ -84,34 +83,26 @@ public class ClientServer
         {
             assert(serialized.length >= 1);
             byte ret = serialized[0];
-            byte tmp[] = new byte[serialized.length - 1];
-            System.arraycopy(serialized, 1, tmp, 0, tmp.length);
-            serialized=tmp;
+            serialized = Arrays.copyOfRange(serialized, 1, serialized.length);
             return ret;
         }
 
         public int dser4()
         {
-            assert(serialized.length >= 4);
+            assert(serialized.length >= SIZE_INT_BYTES);
             int ret = ((serialized[0] & 0xff) << 24) | 
                 ((serialized[1] & 0xff) << 16) | 
                 ((serialized[2] & 0xff) << 8) |
                 (serialized[3] & 0xff);
-
-            byte tmp[] = new byte[serialized.length - 4];
-            System.arraycopy(serialized, 4, tmp, 0, tmp.length);
-            serialized=tmp;
+            serialized = Arrays.copyOfRange(serialized, SIZE_INT_BYTES, serialized.length);
             return ret;
         }
 
         public byte[] dserN(int n)
         {
             assert(serialized.length >= n);
-            byte ret[] = new byte[n];
-            System.arraycopy(serialized, 0, ret, 0, n);
-            byte tmp[] = new byte[serialized.length - n];
-            System.arraycopy(serialized, n, tmp, 0, serialized.length - n);
-            serialized=tmp;
+            byte ret[] = Arrays.copyOfRange(serialized, 0, n);
+            serialized = Arrays.copyOfRange(serialized, n, serialized.length);
             return ret;            
         }
         
@@ -120,7 +111,6 @@ public class ClientServer
             return serialized.length;
         }
     }
-
 
     public static Optional<byte[]> encryptRSA(byte message[], PublicKey publicKey)
     {
@@ -266,13 +256,15 @@ public class ClientServer
         return ret;
     }
 
+    public static int generateRandom()
+    {
+        BigInteger rnd = Common.getRandom(BigInteger.ZERO, BigInteger.ONE.shiftLeft(31).subtract(BigInteger.ONE));
+        return rnd.intValue();
+    }
+
     public static byte[] generateMsg01ClientServer(int random)
     {
-        byte ret[] = new byte[1 + SIZE_INT_BYTES];
-        ret[0] = 1;
-        serialize(ret, random, 1);
-
-        return ret;
+        return new Serializer().ser1(1).ser4(random).serialized;
     }
 
     public static Optional<Integer> parseMsg01ClientServer(byte payload[])
@@ -280,7 +272,9 @@ public class ClientServer
         Optional<Integer> ret = Optional.empty();
         if ((payload.length == 5) && (payload[0] == 1))
         {
-            int random = deserialize(payload, 1);
+            Deserializer d = new Deserializer(payload);
+            d.dser1();
+            int random = d.dser4();
             ret = Optional.of(Integer.valueOf(random));
         }
 
@@ -293,22 +287,17 @@ public class ClientServer
 
         try
         {
+            Serializer s = new Serializer();
             byte certBuf[] = cert.getEncoded();
-            byte toSign[] = new byte[1 + SIZE_INT_BYTES + SIZE_INT_BYTES + SIZE_INT_BYTES + certBuf.length];
-            toSign[0] = (byte)(msgId & 0xff);
-            serialize(toSign, random_s, 1);
-            serialize(toSign, random_c, 1 + SIZE_INT_BYTES);
-            serialize(toSign, certBuf.length, 1 + SIZE_INT_BYTES + SIZE_INT_BYTES);
-            System.arraycopy(certBuf, 0, toSign, 1 + SIZE_INT_BYTES + SIZE_INT_BYTES + SIZE_INT_BYTES, certBuf.length);
-            ret = appendSignature(toSign, privateKey);
+            s.ser1(msgId).ser4(random_s).ser4(random_c).ser4(certBuf.length).serN(certBuf);
+            ret = appendSignature(s.serialized, privateKey);
         }
         catch (GeneralSecurityException e)
         {
-
+            System.err.println(e.getMessage());
         }
 
         return ret;
-
     }
 
     public static Optional<byte[]> generateMsg02ServerClient(int random_c, int random_s, X509Certificate cert, PrivateKey privateKey)
@@ -327,19 +316,18 @@ public class ClientServer
 
         if ((payload.length >= 1 + SIZE_INT_BYTES * 2) && (payload[0] == 2))
         {
-            int randomServer = deserialize(payload, 1);
-            int randomClient = deserialize(payload, 1 + SIZE_INT_BYTES);
-            int sizeCert =  deserialize(payload, 1 + 2 * SIZE_INT_BYTES);
+            Deserializer d = new Deserializer(payload);
+            d.dser1();
+            int randomServer = d.dser4();
+            int randomClient = d.dser4();
+            int sizeCert = d.dser4();
             int signedPayloadLength = (1 + 3 * SIZE_INT_BYTES + sizeCert);
 
             if ((randomClient == random_c) && (payload.length >= signedPayloadLength))
             {
-                byte signedPayload[] = Arrays.copyOfRange(payload, 0, signedPayloadLength);
-                byte signature[] = Arrays.copyOfRange(payload, signedPayloadLength, payload.length);
-                int certOffsetInPayload = 1 + 3 * SIZE_INT_BYTES;
-                Optional<X509Certificate> optCert = createCertificate(Arrays.copyOfRange(payload, certOffsetInPayload, certOffsetInPayload + sizeCert));
-
-                if (optCert.isPresent() && verifySignature(signedPayload, signature, optCert.get()))
+                byte cert[] = d.dserN(sizeCert);
+                Optional<X509Certificate> optCert = createCertificate(cert);
+                if (optCert.isPresent() && verifySignature(payload, signedPayloadLength, optCert.get()))
                 {
                     ret = Optional.of(new Pair<X509Certificate, Integer>(optCert.get(), Integer.valueOf(randomServer)));
                 }
@@ -355,23 +343,22 @@ public class ClientServer
 
         if ((payload.length >= 1 + SIZE_INT_BYTES * 3) && (payload[0] == 3))
         {
-            int randomServer = deserialize(payload, 1);
-            int randomClient = deserialize(payload, 1 + SIZE_INT_BYTES);
-            int sizeCert = deserialize(payload, 1 + SIZE_INT_BYTES + SIZE_INT_BYTES);
+            Deserializer d = new Deserializer(payload);
+            d.dser1();
+            int randomServer = d.dser4();
+            int randomClient = d.dser4();
+            int sizeCert = d.dser4();
             int signedPayloadLength = (1 + 3 * SIZE_INT_BYTES + sizeCert);
 
             if ((random_s == randomServer) && (random_c == randomClient) && (sizeCert > 0) && 
-                (payload.length >= signedPayloadLength))
+                 (payload.length >= signedPayloadLength))
             {
-                byte signedPayload[] = Arrays.copyOfRange(payload, 0, signedPayloadLength);
-                byte signature[] = Arrays.copyOfRange(payload, signedPayloadLength, payload.length);
-                
-                Optional<X509Certificate> optCert = createCertificate(Arrays.copyOfRange(payload, 1 + 3 * SIZE_INT_BYTES, 1 + 3 * SIZE_INT_BYTES + sizeCert));
-
-                if (optCert.isPresent() && verifySignature(signedPayload, signature, optCert.get()))
+                byte cert[] = d.dserN(sizeCert);
+                Optional<X509Certificate> optCert = createCertificate(cert);
+                if (optCert.isPresent() && verifySignature(payload, signedPayloadLength, optCert.get()))
                 {
                     ret = optCert;
-                }
+                }            
             }
         }
 
@@ -401,19 +388,15 @@ public class ClientServer
             int randomClient = d.dser4();
             int sizePubKey = d.dser4();
             int sizeModulus = d.dser4();
-
-            // FIXME: Potential Buffer overflow here!
-            byte pubKeyBytes[] = d.dserN(sizePubKey);
-            byte modulusBytes[] = d.dserN(sizeModulus);
             int signedPayloadLength = (1 + 4 * SIZE_INT_BYTES + sizePubKey + sizeModulus);
             
             if ((random_s == randomServer) && (random_c == randomClient) && (sizePubKey > 0) && (sizeModulus > 0) &&
                 (payload.length >= signedPayloadLength))
             {
-                Deserializer d2 = new Deserializer(payload);
-                byte signedPayload[] = d2.dserN(signedPayloadLength);
-                byte signature[] = d2.dserN(d2.size());
-                if (verifySignature(signedPayload, signature, cert))
+                byte pubKeyBytes[] = d.dserN(sizePubKey);
+                byte modulusBytes[] = d.dserN(sizeModulus);
+    
+                if (verifySignature(payload, signedPayloadLength, cert))
                 {
                     ret = Optional.of(new Pair<>(new BigInteger(1, pubKeyBytes), new BigInteger(1, modulusBytes)));
                 }
@@ -447,10 +430,7 @@ public class ClientServer
                 (payload.length >= signedPayloadLength))            
             {
                 byte ciphertext[] = d.dserN(sizeCiphertext);
-                Deserializer d2 = new Deserializer(payload);
-                byte signedPayload[] = d2.dserN(signedPayloadLength);
-                byte signature[] = d2.dserN(d2.size());
-                if (verifySignature(signedPayload, signature, cert))
+                if (verifySignature(payload, signedPayloadLength, cert))
                 {
                     ret = Optional.of(ciphertext);
                 }
@@ -460,8 +440,13 @@ public class ClientServer
         return ret;
     }
 
-    private static boolean verifySignature(byte payloadToVerify[], byte signatureBytes[], X509Certificate cert)
+    private static boolean verifySignature(byte payloadAndSignature[], int signedPayloadLen, X509Certificate cert)
     {
+        assert(payloadAndSignature.length > signedPayloadLen);
+        Deserializer d = new Deserializer(payloadAndSignature);
+        byte payloadToVerify[] = d.dserN(signedPayloadLen); // Payload to check against signature
+        byte signatureBytes[] = d.dserN(d.size()); // Signature is the rest
+
         boolean ret = false;
         try
         {
@@ -472,7 +457,7 @@ public class ClientServer
         }
         catch (GeneralSecurityException e)
         {
-
+            System.err.println(e.getMessage());
         }
 
         return ret;
@@ -488,39 +473,15 @@ public class ClientServer
             signature.initSign(privateKey);
             signature.update(payloadToSign);
             byte signatureBytes[] = signature.sign();
-
-            byte payloadAndSignature[] = new byte[payloadToSign.length + signatureBytes.length];
-            System.arraycopy(payloadToSign, 0, payloadAndSignature, 0, payloadToSign.length);
-            System.arraycopy(signatureBytes, 0, payloadAndSignature, payloadToSign.length, signatureBytes.length);
-            ret = Optional.of(payloadAndSignature);
+            ret = Optional.of(new Serializer().serN(payloadToSign).serN(signatureBytes).serialized);
         }
         catch (GeneralSecurityException e)
         {
-
+            System.err.println(e.getMessage());
         }
 
         return ret;
     }
-
-    private static void serialize(byte buffer[], int val, int offset)
-    {
-        assert(buffer.length >= (offset + SIZE_INT_BYTES));
-        buffer[offset] = (byte)((val >> 24) & 0xff);
-        buffer[offset + 1] = (byte)((val >> 16) & 0xff);
-        buffer[offset + 2] = (byte)((val >> 8) & 0xff);
-        buffer[offset + 3] = (byte)(val & 0xff);
-    }
-
-    private static int deserialize(byte buffer[], int offset)
-    {
-        assert(buffer.length >= (offset + SIZE_INT_BYTES));
-        int val = ((buffer[offset] & 0xff) << 24) | 
-            ((buffer[offset + 1] & 0xff) << 16) | 
-            ((buffer[offset + 2] & 0xff) << 8) |
-            (buffer[offset + 3] & 0xff);
-        return val;
-    }
-
 
     public static byte[] receiveMessage(InputStream is) throws IOException
     {

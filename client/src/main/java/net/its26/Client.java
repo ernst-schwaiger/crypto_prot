@@ -46,7 +46,7 @@ public class Client
             this.rootCertificate = rootCertificate;
             this.clientCertificate = clientCertificate;
             this.clientPrivateKey = clientPrivateKey;
-            this.clientRandom = generateRandom();
+            this.clientRandom = ClientServer.generateRandom();
 
             this.state = ClientState.SEND_MSG01;
             this.serverRandom = Optional.empty();
@@ -133,12 +133,6 @@ public class Client
                     log("Sent Msg05: " + Common.getByteArrayAsString(txMessage.get()));
                 }
             }
-        }
-
-        private int generateRandom()
-        {
-            BigInteger rnd = Common.getRandom(BigInteger.ZERO, BigInteger.ONE.shiftLeft(31).subtract(BigInteger.ONE));
-            return rnd.intValue();
         }
 
         private void log(String message)
