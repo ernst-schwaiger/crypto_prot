@@ -12,14 +12,38 @@ public final class RSA
     private static final long MAX_BITS_PRIME_FACTORIZATION = 20;
     private static final ArrayList<Integer> FIRST_PRIMES = calculateFirstPrimes();
 
+    public static class PublicKey
+    {
+        public final BigInteger e;
+        public final BigInteger n;
+        
+        public PublicKey(BigInteger e, BigInteger n)
+        {
+            this.e = e;
+            this.n = n;
+        }
+    }
+
+    public static class PrivatePublicKey
+    {
+        public final BigInteger d;
+        public final PublicKey pubKey;
+
+        public PrivatePublicKey(BigInteger d, BigInteger e,  BigInteger n)
+        {
+            this.d = d;
+            this.pubKey = new PublicKey(e, n);
+        }
+    }
+
     private static final byte SINGLE_BYTE_ARRAY_ONE[] = { 1 };
 
     private RSA() {} // no instantiation
 
-    public static byte[] encrypt(BigInteger key, BigInteger modulus, byte message[])
+    public static byte[] encrypt(PublicKey pubKey, byte message[])
     {
         BigInteger val = new BigInteger(message);
-        BigInteger encrypted = Common.squareAndMultiplyModulus(val, key, modulus);
+        BigInteger encrypted = Common.squareAndMultiplyModulus(val, pubKey.e, pubKey.n);
         byte ret[] = encrypted.toByteArray();
         return ret;
     } 
@@ -32,12 +56,12 @@ public final class RSA
         return ret;
     }
 
-    public static byte[] padAndEncrypt(BigInteger key, BigInteger modulus, byte message[])
+    public static byte[] padAndEncrypt(PublicKey pubKey, byte message[])
     {
-        int keyLenByte = (modulus.bitLength() + 7) / 8;       
+        int keyLenByte = (pubKey.n.bitLength() + 7) / 8;       
         byte paddedMessage[] = optimalAsymmetricEncryptionPadding(message, keyLenByte);
         assert(paddedMessage.length == keyLenByte);
-        return encrypt(key, modulus, paddedMessage);
+        return encrypt(pubKey, paddedMessage);
     }
 
     public static byte[] decryptAndUnpad(BigInteger key, BigInteger modulus, byte ciphertext[])
@@ -163,7 +187,7 @@ public final class RSA
     }
 
     // Generates a Private/Public Key Pair using two primes p, q of bit length k
-    public static Pair<BigInteger, Pair<BigInteger, BigInteger>> generateKeyPair(long k)
+    public static PrivatePublicKey generateKeyPair(long k)
     {
         BigInteger p = provablePrimeMaurer(k);
         BigInteger q = provablePrimeMaurer(k);
@@ -176,11 +200,13 @@ public final class RSA
 
         assert(e.multiply(d).mod(phi_n).equals(BigInteger.ONE));
 
-        return new Pair<>(d, new Pair<>(e,n));
+        return new PrivatePublicKey(d, e, n);
     }
 
     private static BigInteger generateE(BigInteger phi_n)
     {
+        // FIXME: Just return 65537 here?
+
         int bitLen = phi_n.bitLength();
         int bitlen_min = bitLen / 4;
         int bitlen_max = (bitLen * 3) / 4;

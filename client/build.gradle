@@ -41,3 +41,21 @@ tasks.named('test') {
     // Use JUnit Platform for unit tests.
     useJUnitPlatform()
 }
+
+task generateKeyAndCert(type: Exec) {
+    commandLine "${project.projectDir}/../KeysAndCerts/genKeyAndCerts.sh"
+}
+
+task copyKeyAndCertsToBuild(type: Copy) {
+    from "${project.projectDir}/../KeysAndCerts/generated"       // Source directory
+    include 'rootCA.crt', 'clientCert.crt', 'clientCert.key'  // Files to copy
+    into 'build/resources'     // Destination directory
+}
+
+copyKeyAndCertsToBuild {
+    dependsOn generateKeyAndCert
+}
+
+compileJava {
+    dependsOn copyKeyAndCertsToBuild
+}

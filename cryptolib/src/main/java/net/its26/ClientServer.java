@@ -149,21 +149,22 @@ public class ClientServer
         return ret;
     }
     
-    public static Optional<X509Certificate> createCertificate(String path)
+    public static Optional<X509Certificate> createCertificate(InputStream inStrm)
     {
         X509Certificate cert = null;
-        try (InputStream inStrm = new FileInputStream(path))
+
+        try
         {
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
-            cert = (X509Certificate)cf.generateCertificate(inStrm);
+            cert =(X509Certificate)cf.generateCertificate(inStrm);
         }
-        catch(IOException | CertificateException e)
+        catch(CertificateException e)
         {
             System.err.println("Could not open certificate file: " + e.toString());
-        }
+        }    
 
         return Optional.ofNullable(cert);
-    }
+    }    
 
     public static Optional<X509Certificate> createCertificate(byte buffer[])
     {
@@ -182,12 +183,12 @@ public class ClientServer
         return Optional.ofNullable(cert);
     }
 
-    public static Optional<PrivateKey> readPrivateKey(String keyFilePath)
+    public static Optional<PrivateKey> readPrivateKey(InputStream inStrm)
     {
         Optional<PrivateKey> ret = Optional.empty();
         try 
         {
-            String key = new String(Files.readAllBytes(Paths.get(keyFilePath)));
+            String key = new String(inStrm.readAllBytes());
             // Remove header and footer of the PEM file
             key = key.replace("-----BEGIN PRIVATE KEY-----", "")
                     .replace("-----END PRIVATE KEY-----", "")
@@ -207,7 +208,7 @@ public class ClientServer
         }
 
         return ret;
-    }
+    }    
 
     public static boolean verifyCertificate(X509Certificate cert, X509Certificate trustedIssuerCert, String commonName)
     {
@@ -366,19 +367,19 @@ public class ClientServer
         return ret;
     }
 
-    public static Optional<byte[]> generateMsg04ServerClient(int random_c, int random_s, Pair<BigInteger, BigInteger> pubKey, PrivateKey privateKey)
+    public static Optional<byte[]> generateMsg04ServerClient(int random_c, int random_s, RSA.PublicKey pubKey, PrivateKey privateKey)
     {
-        byte pubKeyBytes[] = pubKey.first.toByteArray();
-        byte modulusBytes[] = pubKey.last.toByteArray();
+        byte pubKeyBytes[] = pubKey.e.toByteArray();
+        byte modulusBytes[] = pubKey.n.toByteArray();
         Serializer s = new Serializer();
         s.ser1(4).ser4(random_s).ser4(random_c).ser4(pubKeyBytes.length).ser4(modulusBytes.length).serN(pubKeyBytes).serN(modulusBytes);
         Optional<byte[]> ret = appendSignature(s.serialized, privateKey);
         return ret;
     }
 
-    public static Optional<Pair<BigInteger, BigInteger>> parseMsg04ServerClient(byte payload[], int random_c, int random_s, X509Certificate cert)
+    public static Optional<RSA.PublicKey> parseMsg04ServerClient(byte payload[], int random_c, int random_s, X509Certificate cert)
     {
-        Optional<Pair<BigInteger, BigInteger>> ret = Optional.empty();
+        Optional<RSA.PublicKey> ret = Optional.empty();
 
         if ((payload.length >=  1 + SIZE_INT_BYTES * 4) && (payload[0] == 4))
         {
@@ -398,7 +399,7 @@ public class ClientServer
     
                 if (verifySignature(payload, signedPayloadLength, cert))
                 {
-                    ret = Optional.of(new Pair<>(new BigInteger(1, pubKeyBytes), new BigInteger(1, modulusBytes)));
+                    ret = Optional.of(new RSA.PublicKey(new BigInteger(1, pubKeyBytes), new BigInteger(1, modulusBytes)));
                 }
             }
         }
@@ -440,11 +441,11 @@ public class ClientServer
         return ret;
     }
 
-    public static Optional<byte[]> generateMsg06ServerClient(int random_c, int random_s, Pair<BigInteger, BigInteger> dsaSignature, DSA.PubKey pubKey)
+    public static Optional<byte[]> generateMsg06ServerClient(int random_c, int random_s, Pair<BigInteger, BigInteger> dsaSignature, DSA.PubKey pubKey, PrivateKey privateKey)
     {
         Serializer s = new Serializer();
         s
-            .ser1(5)
+            .ser1(6)
             .ser4(random_s)
             .ser4(random_c)
             .ser4(dsaSignature.first.toByteArray().length)
@@ -459,8 +460,48 @@ public class ClientServer
             .serN(pubKey.q.toByteArray())
             .serN(pubKey.alpha.toByteArray())
             .serN(pubKey.y.toByteArray());
+        Optional<byte[]> ret = appendSignature(s.serialized, privateKey);
+        return ret;
+    }
 
-        return Optional.of(s.serialized);
+    public static Optional<Pair<Pair<BigInteger, BigInteger>, DSA.PubKey>> parseMsg06ServerClient(byte payload[], int random_c, int random_s, X509Certificate cert)
+    {
+        Optional<Pair<Pair<BigInteger, BigInteger>, DSA.PubKey>> ret = Optional.empty();
+
+        if ((payload.length >=  1 + SIZE_INT_BYTES * 8) && (payload[0] == 6))
+        {
+            Deserializer d = new Deserializer(payload);
+            d.dser1(); // eat the first byte
+            int randomServer = d.dser4();
+            int randomClient = d.dser4();
+            int dsaSigLength1 = d.dser4();
+            int dsaSigLength2 = d.dser4();
+            int dsaPLength = d.dser4();
+            int dsaQLength = d.dser4();
+            int dsaAlphaLength = d.dser4();
+            int dsaYLength = d.dser4();
+
+            int signedPayloadLength = 1 + SIZE_INT_BYTES * 8 + dsaSigLength1 + dsaSigLength2 + dsaPLength + dsaQLength + dsaAlphaLength + dsaYLength;
+
+            if ((random_s == randomServer) && (random_c == randomClient) && (payload.length >= signedPayloadLength))
+            {
+                if (verifySignature(payload, signedPayloadLength, cert))
+                {
+                    BigInteger dsaSig1 = new BigInteger(1, d.dserN(dsaSigLength1));
+                    BigInteger dsaSig2 = new BigInteger(1, d.dserN(dsaSigLength2));
+                    Pair<BigInteger, BigInteger> signature = new Pair<>(dsaSig1, dsaSig2);
+                    BigInteger dsaP = new BigInteger(1, d.dserN(dsaPLength));
+                    BigInteger dsaQ = new BigInteger(1, d.dserN(dsaQLength));
+                    BigInteger dsaAlpha = new BigInteger(1, d.dserN(dsaAlphaLength));
+                    BigInteger dsaY = new BigInteger(1, d.dserN(dsaYLength));
+                    DSA.PubKey dsaPubKey = new DSA.PubKey(dsaP, dsaQ, dsaAlpha, dsaY);
+
+                    ret = Optional.of(new Pair<>(signature, dsaPubKey));
+                }
+            }
+        }
+
+        return ret;
     }
 
     private static boolean verifySignature(byte payloadAndSignature[], int signedPayloadLen, X509Certificate cert)
@@ -519,7 +560,6 @@ public class ClientServer
         int bytesRead = 0;
         while ((bytesRead == 0) && (bytesRead = is.read(tempBuffer)) != -1) 
         {
-            System.out.println("Read " + Integer.valueOf(bytesRead) + " bytes from Tcp");
             buffer.write(tempBuffer, 0, bytesRead); // Append to buffer
         }
 

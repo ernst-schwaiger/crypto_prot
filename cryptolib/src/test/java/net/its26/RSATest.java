@@ -66,18 +66,15 @@ class RSATest {
 
         for (int i = 1; i < 5; i++)
         {
-            Pair<BigInteger, Pair<BigInteger, BigInteger>> privPub = RSA.generateKeyPair(1024);
-            BigInteger d = privPub.first;
-            BigInteger e = privPub.last.first;
-            BigInteger m = privPub.last.last;
-    
-            byte[] ciphertext = RSA.encrypt(e, m, secretText.getBytes());
-            byte[] cleartext = RSA.decrypt(d, m, ciphertext);
+            RSA.PrivatePublicKey privPub = RSA.generateKeyPair(1024);
+     
+            byte[] ciphertext = RSA.encrypt(privPub.pubKey, secretText.getBytes());
+            byte[] cleartext = RSA.decrypt(privPub.d, privPub.pubKey.n, ciphertext);
             System.out.println("Decrypted Text: " + new String(cleartext));
     
             byte secretNumber[] = { 42 };
-            byte[] ciphertext_number = RSA.encrypt(e, m, secretNumber);
-            byte[] cleartext_number = RSA.decrypt(d, m, ciphertext_number);
+            byte[] ciphertext_number = RSA.encrypt(privPub.pubKey, secretNumber);
+            byte[] cleartext_number = RSA.decrypt(privPub.d, privPub.pubKey.n, ciphertext_number);
             assertTrue(Arrays.equals(secretNumber, cleartext_number));             
         }
     }
@@ -87,13 +84,10 @@ class RSATest {
         String clearText = "This shall test encryption of a padded clear text";
         for (int i = 1; i < 5; i++)
         {
-            Pair<BigInteger, Pair<BigInteger, BigInteger>> privPub = RSA.generateKeyPair(1024);
-            BigInteger d = privPub.first;
-            BigInteger e = privPub.last.first;
-            BigInteger m = privPub.last.last;
+            RSA.PrivatePublicKey privPub = RSA.generateKeyPair(1024);
     
-            byte ciphertext[] = RSA.padAndEncrypt(e, m, clearText.getBytes());
-            byte unpaddedClearText[] = RSA.decryptAndUnpad(d, m, ciphertext);
+            byte ciphertext[] = RSA.padAndEncrypt(privPub.pubKey, clearText.getBytes());
+            byte unpaddedClearText[] = RSA.decryptAndUnpad(privPub.d, privPub.pubKey.n, ciphertext);
             System.out.println(i);
             assertTrue(Arrays.equals(unpaddedClearText, clearText.getBytes()));            
         }
