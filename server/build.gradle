@@ -43,19 +43,22 @@ tasks.named('test') {
 }
 
 task generateKeyAndCert(type: Exec) {
-    commandLine "${project.projectDir}/../KeysAndCerts/genKeyAndCerts.sh"
+    println 'generating keys and certificates...'
+    commandLine '../KeysAndCerts/genKeyAndCerts.sh'
 }
 
 task copyKeyAndCertsToBuild(type: Copy) {
-    from "${project.projectDir}/../KeysAndCerts/generated"       // Source directory
+    println 'copying keys and certificates into resources folders...'
+    from '../KeysAndCerts/generated'       // Source directory
     include 'rootCA.crt', 'serverCert.crt', 'serverCert.key'  // Files to copy
     into 'build/resources'     // Destination directory
+    into 'src/main/resources'
 }
 
 copyKeyAndCertsToBuild {
     dependsOn generateKeyAndCert
 }
 
-compileJava {
+processResources {
     dependsOn copyKeyAndCertsToBuild
 }
