@@ -64,5 +64,3 @@ To run the protocol:
 - `server/src/main/java/net/its26/Server.java`: Server implementation
 
 ## TODO
-
-- Implement symmetric encryption/decryption, add tests
