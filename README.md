@@ -9,7 +9,6 @@ Basic Cryptographic Protocols implemented in Java
 
 ## Build and run tests
 
-- run `chmod +x KeysAndCerts/genKeyAndCerts.sh`
 - run `./gradlew build`
 This will generate a self-signed root certificate, client and server certificates that are signed by the root
 certificate, as well as the associated keys. The certificates and keys are added to the client and server .jar files
@@ -50,7 +49,7 @@ was successful or not.
 
 To run the protocol:
 - Run server via gradlew `./gradlew :server:run`.
-- Run client via gradlew: `./gradlew :client:run --args <secret message>`.
+- Run client via gradlew: `./gradlew :client:run --args <secret message>`, e.g. `./gradlew :client:run --args "This is my secret message"`
 
 ## Source Code
 
