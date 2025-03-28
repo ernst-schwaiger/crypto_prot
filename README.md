@@ -9,19 +9,16 @@ Basic cryptographic primitives implemented in Java, client-server protocol showc
 
 ## Build and run tests
 
-- run `./gradlew build`
-This will generate a self-signed root certificate, client and server certificates that are signed by the root
-certificate, as well as the associated keys. The certificates and keys are added to the client and server .jar files
-as resources in the subsequent compilation phase.
+Run `./gradlew build`. This will generate a self-signed root certificate, client and server certificates that are signed by the root certificate, as well as the associated keys. The certificates and keys are added to the client and server .jar files as resources in the subsequent compilation phase.
 
 ## Get unit test coverage via JaCoCo
 
-- run `./gradlew test jacocoTestReport`
+Run `./gradlew test jacocoTestReport`
 
 ## Client-Server Protocol
 
-The implemented RSA, DSA, SHA-1 primitives and the processing of certificates are used in the following client/server protocol. Ta avoid  cluttering the protocol, not all primitives were integrated, i.e. the
-elliptic curve/hashing/HMAC/AES functions were left out. Their usage is shown in the respective unit tests.
+The implemented RSA, DSA, SHA-1 primitives and the processing of certificates are used in the following client/server protocol. To avoid  cluttering the protocol, not all primitives were integrated, i.e. the
+elliptic curve/hashing/HMAC/AES/Certificate functions were left out. Their usage is shown in the respective unit tests.
 
 Client and Server exchange messages via localhost:12345/Tcp, should be visible on wireshark.
 
@@ -30,15 +27,14 @@ The first message byte is `Id`, index of the message: 1..6. This is, except for 
 transmits the four random bytes of the client. In the following, the sequence `Id`, `Random_Server`, and `Random_Client` is referred to as `Header`
 
 Client and Server generate the trailing `Signature` field by signing all message bytes using the private key of their certificate.
-In messages 2 and 3 the peers transmit their own certificate which is then validated by the other side:
-- Correct common name
-- Certificate is valid, with respect to date/time.
-- Certificate was signed by root certificate
+In messages 2 and 3 the peers transmit their own certificate which is then validated by the other side for:
+- Correct subject name
+- Validity of certificate (not expired yet, already valid)
+- Signature of certificate by root certificate
 
 In message 4, the server transmits its RSA public key. In message 5, the client generates a `Ciphertext` out of a secret message using that key and sends it back to the server.
 
-The server decrypts the `Ciphertext`, signs the clear text with its DSA key pair, and sends the signature and the public DSA key back
-to the client in message 6. The client verifies the validity of the signature against the clear text and reports whether the verification
+The server decrypts the `Ciphertext`, prints the clear text on the console, then signs the clear text with its DSA key pair, and sends the signature and the public DSA key back to the client in message 6. The client verifies the validity of the signature against the clear text and reports whether the verification
 was successful or not. The following diagram shows the layout of the messages:
 
 ![Client Server Handshake](doc/ClientServer.png)
@@ -52,6 +48,7 @@ To run the protocol:
 ### Primitives
 
 - [AES.java](cryptolib/src/main/java/net/its26/AES.java): Symmetric encryption/decryption using AES 128 CBC; tests: [AESTest.java](cryptolib/src/test/java/net/its26/AESTest.java)
+- [Certificates.java](cryptolib/src/main/java/net/its26/Certificates.java): Certificate generation; tests: [CertificatesTest.java](cryptolib/src/test/java/net/its26/CertificatesTest.java)
 - [Common.java](cryptolib/src/main/java/net/its26/Common.java): commonly used functions; tests: [CommonTest.java](cryptolib/src/test/java/net/its26/CommonTest.java)
 - [DSA.java](cryptolib/src/main/java/net/its26/DSA.java): DSA key generation, signing and verification; tests: [DSATest.java](cryptolib/src/test/java/net/its26/DSATest.java)
 - [EC.java](cryptolib/src/main/java/net/its26/EC.java): EC scalar multiplication; tests: [ECTest.java](cryptolib/src/test/java/net/its26/ECTest.java)

@@ -205,23 +205,25 @@ public final class RSA
 
     private static BigInteger generateE(BigInteger phi_n)
     {
-        // FIXME: Just return 65537 here?
+        // Standard RSA public key
+        return BigInteger.valueOf(65537);
 
-        int bitLen = phi_n.bitLength();
-        int bitlen_min = bitLen / 4;
-        int bitlen_max = (bitLen * 3) / 4;
+        // Comment this in for an arbitrary public key (processing will be slower)
+        // int bitLen = phi_n.bitLength();
+        // int bitlen_min = bitLen / 4;
+        // int bitlen_max = (bitLen * 3) / 4;
 
-        BigInteger e_min = BigInteger.ONE.shiftLeft(bitlen_min - 1).add(BigInteger.ONE);
-        BigInteger e_max = BigInteger.ONE.shiftLeft(bitlen_max - 1).subtract(BigInteger.ONE);
+        // BigInteger e_min = BigInteger.ONE.shiftLeft(bitlen_min - 1).add(BigInteger.ONE);
+        // BigInteger e_max = BigInteger.ONE.shiftLeft(bitlen_max - 1).subtract(BigInteger.ONE);
 
-        while (true)
-        {
-            BigInteger e = Common.getRandom(e_min, e_max);
-            if (gcd(phi_n, e).equals(BigInteger.ONE))
-            {
-                return e;
-            }
-        }
+        // while (true)
+        // {
+        //     BigInteger e = Common.getRandom(e_min, e_max);
+        //     if (gcd(phi_n, e).equals(BigInteger.ONE))
+        //     {
+        //         return e;
+        //     }
+        // }
     }
 
     private static BigInteger gcd(BigInteger a, BigInteger b)
