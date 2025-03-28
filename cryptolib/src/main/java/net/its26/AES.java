@@ -1,10 +1,8 @@
 package net.its26;
 
 import java.security.GeneralSecurityException;
-import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
-import java.util.Base64;
 import java.util.Optional;
 
 import javax.crypto.Cipher;
