@@ -27,5 +27,18 @@ replay_pid*
 .gradle
 
 # Ignore Gradle build output directory
-build
-KeysAndCerts/generated
+basics/build
+basics/client/bin
+basics/client/build
+basics/client/src/main/resources
+basics/server/bin
+basics/server/build
+basics/server/src/main/resources
+basics/cryptolib/build
+basics/KeysAndCerts/generated
+mqv/build
+mqv/cryptolib/build
+mqv/alice/build
+mqv/bob/build
+mqv/eve/build
+
