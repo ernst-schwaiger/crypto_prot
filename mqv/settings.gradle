@@ -10,7 +10,8 @@ plugins {
     id 'org.gradle.toolchains.foojay-resolver-convention' version '0.9.0'
 }
 
-rootProject.name = 'basics'
+rootProject.name = 'mqv'
 include('cryptolib')
-include('server')
-include('client')
+include('alice')
+include('bob')
+include('eve')
