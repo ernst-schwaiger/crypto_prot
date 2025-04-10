@@ -12,3 +12,8 @@ Basic cryptographic primitives implemented in Java, client-server protocol showc
 
 [Basics](./basics/README.md)
 
+## MQV
+
+Menezes Qu Vanstone Key Exchange protocol implemented in Java
+
+[MQV](./mqv/README.md)
