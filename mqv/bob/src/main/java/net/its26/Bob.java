@@ -3,19 +3,35 @@
  */
 package net.its26;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.math.BigInteger;
+import java.net.ServerSocket;
 import java.net.Socket;
-import java.security.PrivateKey;
-import java.security.cert.X509Certificate;
-import java.util.Optional;
-import java.util.function.Function;
 
 public class Bob 
 {
+    private static final int LISTEN_PORT = 12345;
+
     public static void main(String[] args) 
     {
-        System.out.println("Hello, Alice.");
+        try (ServerSocket serverSocket = new ServerSocket(LISTEN_PORT)) 
+        {
+            System.out.println("Listening on port " + LISTEN_PORT);
+
+            while(true)
+            {
+                Socket socket = serverSocket.accept();
+                System.out.println("Alice connected from: " + socket.getInetAddress());
+                String alicesMessage = new String(ClientServer.receiveMessage(socket.getInputStream()));
+                System.out.println("Alice sent: " + alicesMessage);
+
+                String myReply = "Hello, Alice.";
+                System.out.println("Replying to Alice: " + myReply);
+                ClientServer.sendMessage(myReply.getBytes(), socket.getOutputStream());
+                socket.close();
+            }
+        }
+        catch (Exception e) 
+        {
+            e.printStackTrace();
+        }        
     }
 }

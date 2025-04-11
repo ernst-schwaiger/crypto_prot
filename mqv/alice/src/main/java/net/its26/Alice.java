@@ -4,18 +4,26 @@
 package net.its26;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.math.BigInteger;
 import java.net.Socket;
-import java.security.PrivateKey;
-import java.security.cert.X509Certificate;
-import java.util.Optional;
-import java.util.function.Function;
 
 public class Alice 
 {
+    private static final String BOBS_IP = "localhost";
+    private static final int BOBS_PORT = 12345;
+
     public static void main(String[] args) 
     {
-        System.out.println("Hello, Bob.");
+        try (Socket socket = new Socket(BOBS_IP, BOBS_PORT)) 
+        {
+            String helloMessage = "Hello, Bob.";
+            System.out.println("Sending to Bob: " + helloMessage);
+            ClientServer.sendMessage(helloMessage.getBytes(), socket.getOutputStream());
+            String bobsReply = new String(ClientServer.receiveMessage(socket.getInputStream()));
+            System.out.println("Bob replied: " + bobsReply);
+        } 
+        catch (IOException e) 
+        {
+            e.printStackTrace();
+        }
     }
 }

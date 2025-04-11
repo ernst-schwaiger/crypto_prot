@@ -3,15 +3,6 @@
  */
 package net.its26;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.math.BigInteger;
-import java.net.Socket;
-import java.security.PrivateKey;
-import java.security.cert.X509Certificate;
-import java.util.Optional;
-import java.util.function.Function;
-
 public class Eve 
 {
     public static void main(String[] args) 
