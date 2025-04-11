@@ -7,9 +7,8 @@ repositories {
 }
 
 dependencies {
-    // bouncy castle needed for accessing X509v3 certificates 
+    // bouncy castle needed for EC primitives
     implementation 'org.bouncycastle:bcprov-jdk15on:1.70'
-    implementation 'org.bouncycastle:bcpkix-jdk15on:1.70'
 
     // Use JUnit Jupiter for testing.
     testImplementation libs.junit.jupiter

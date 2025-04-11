@@ -17,8 +17,8 @@ public class Alice
         {
             String helloMessage = "Hello, Bob.";
             System.out.println("Sending to Bob: " + helloMessage);
-            ClientServer.sendMessage(helloMessage.getBytes(), socket.getOutputStream());
-            String bobsReply = new String(ClientServer.receiveMessage(socket.getInputStream()));
+            MQV.sendMessage(helloMessage.getBytes(), socket.getOutputStream());
+            String bobsReply = new String(MQV.receiveMessage(socket.getInputStream()));
             System.out.println("Bob replied: " + bobsReply);
         } 
         catch (IOException e) 

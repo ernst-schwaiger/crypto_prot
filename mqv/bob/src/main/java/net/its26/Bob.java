@@ -20,12 +20,12 @@ public class Bob
             {
                 Socket socket = serverSocket.accept();
                 System.out.println("Alice connected from: " + socket.getInetAddress());
-                String alicesMessage = new String(ClientServer.receiveMessage(socket.getInputStream()));
+                String alicesMessage = new String(MQV.receiveMessage(socket.getInputStream()));
                 System.out.println("Alice sent: " + alicesMessage);
 
                 String myReply = "Hello, Alice.";
                 System.out.println("Replying to Alice: " + myReply);
-                ClientServer.sendMessage(myReply.getBytes(), socket.getOutputStream());
+                MQV.sendMessage(myReply.getBytes(), socket.getOutputStream());
                 socket.close();
             }
         }

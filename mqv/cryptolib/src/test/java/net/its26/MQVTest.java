@@ -5,12 +5,12 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 
-public class ClientServerTest 
+public class MQVTest 
 {
     @Test void testSerializerDeserializer()
     {
         byte tmp[] = {(byte)0x23, (byte)0x45, (byte)0x67};
-        ClientServer.Serializer ser = new ClientServer.Serializer();
+        MQV.Serializer ser = new MQV.Serializer();
         ser.ser1(0x89).ser4(0xabcdef01).serN(tmp);
         assertEquals(ser.serialized.length, 8);
         assertEquals(ser.serialized[0] & 0xff, 0x89);
@@ -22,7 +22,7 @@ public class ClientServerTest
         assertEquals(ser.serialized[6] & 0xff, 0x45);
         assertEquals(ser.serialized[7] & 0xff, 0x67);
 
-        ClientServer.Deserializer dser = new ClientServer.Deserializer(ser.serialized);
+        MQV.Deserializer dser = new MQV.Deserializer(ser.serialized);
         assertEquals(dser.dser1(), (byte)0x89);
         assertEquals(dser.dser4(), 0xabcdef01);
         assertTrue(Arrays.equals(dser.dserN(tmp.length), tmp));
