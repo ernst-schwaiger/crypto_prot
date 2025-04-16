@@ -13,5 +13,9 @@ Menezes Qu Vanstone
 
 ## TODO
 
-- Remove unused stuff from cryptolib, add missing EC primitives
-- Add basic message passing Alice, Bob, Eve
+Wikipedia https://en.wikipedia.org/wiki/MQV mentions
+"Note: for the algorithm to be secure some checks have to be performed. See Hankerson et al."
+- Samu: Research on Hankerson et al. (found by Lorenzo)
+- Stefan: Research attacks
+- Lorenzo: Finalize slide deck, integrate feedback
+- Ernst: Demo App using MQV (Elliptic Curve, optional RSA)
