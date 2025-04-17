@@ -3,6 +3,7 @@ package net.its26;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 
 import java.math.BigInteger;
+import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.MessageDigest;
@@ -11,7 +12,11 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
+import java.security.spec.ECPublicKeySpec;
+import java.security.spec.InvalidKeySpecException;
+import java.util.Optional;
 
 public class EC 
 {
@@ -24,12 +29,24 @@ public class EC
         EC_SPEC = org.bouncycastle.jce.ECNamedCurveTable.getParameterSpec("prime256v1");
     }
 
-    public static KeyPair generateKeyPair() throws Exception 
+    public static Optional<KeyPair> generateKeyPair()
     {
-        // Create the KeyPairGenerator instance
-        KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("ECMQV", "BC");
-        keyPairGenerator.initialize(EC_SPEC, new SecureRandom());
-        return keyPairGenerator.generateKeyPair();
+        KeyPair ret = null;
+
+        try
+        {
+            // Create the KeyPairGenerator instance
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("ECMQV", "BC");
+            keyPairGenerator.initialize(EC_SPEC, new SecureRandom());
+            ret = keyPairGenerator.generateKeyPair();
+
+        }
+        catch(Exception e)
+        {
+
+        }
+
+        return Optional.ofNullable(ret);
     }
 
     // sessionKey ephemeral local session key pair
@@ -50,12 +67,22 @@ public class EC
     }
 
     // This gives us a 256bit symmetric Key
-    public static byte[] getSHA256(ECPoint p) throws NoSuchAlgorithmException
+    public static Optional<byte[]> getSHA256(ECPoint p)
     {
-        MessageDigest digest = MessageDigest.getInstance("SHA-256");
-        digest.update(p.getAffineX().toByteArray());
-        digest.update(p.getAffineY().toByteArray());
-        return digest.digest();
+        Optional<byte[]> ret = Optional.empty();
+        try
+        {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            digest.update(p.getAffineX().toByteArray());
+            digest.update(p.getAffineY().toByteArray());
+            ret = Optional.of(digest.digest());
+        }
+        catch(NoSuchAlgorithmException e)
+        {
+            System.err.println(e.getMessage());
+        }
+
+        return ret;
     }
 
     private static BigInteger generateS(KeyPair sessionKey, ECPrivateKey a)
@@ -68,6 +95,24 @@ public class EC
         // S = (x + XInv*a) mod n
         BigInteger S = x.getS().add(XInverse.multiply(a.getS())).mod(n);
         return S;
+    }
+
+    public static Optional<ECPublicKey> generatePublicKey(ECPoint p, ECParameterSpec ecSpec)
+    {
+        ECPublicKey ret = null;
+
+        try
+        {         
+            KeyFactory keyFactory = KeyFactory.getInstance("EC");
+            ECPublicKeySpec pubKeySpec = new ECPublicKeySpec(p, ecSpec);
+            ret = (ECPublicKey) keyFactory.generatePublic(pubKeySpec);
+        }
+        catch(NoSuchAlgorithmException | InvalidKeySpecException e)
+        {
+            System.err.println(e.getMessage());
+        }
+
+        return Optional.ofNullable(ret);
     }
 
     private static ECPoint scalarMultiply(ECPoint p, BigInteger scalar)

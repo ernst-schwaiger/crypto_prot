@@ -7,6 +7,7 @@ import java.security.KeyPair;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECPoint;
+import java.util.Optional;
 
 public class ECTest 
 {
@@ -14,11 +15,20 @@ public class ECTest
     {
         try
         {
-            KeyPair longTermAlice = EC.generateKeyPair();
-            KeyPair sessionAlice = EC.generateKeyPair();
+            Optional<KeyPair> optLongTermAlice = EC.generateKeyPair();
+            Optional<KeyPair> optSessionAlice = EC.generateKeyPair();
+            assertTrue(optLongTermAlice.isPresent());
+            assertTrue(optSessionAlice.isPresent());
 
-            KeyPair longTermBob = EC.generateKeyPair();
-            KeyPair sessionBob = EC.generateKeyPair();
+            Optional<KeyPair> optLongTermBob = EC.generateKeyPair();
+            Optional<KeyPair> optSessionBob = EC.generateKeyPair();
+            assertTrue(optLongTermBob.isPresent());
+            assertTrue(optSessionBob.isPresent());
+
+            KeyPair longTermAlice = optLongTermAlice.get();
+            KeyPair sessionAlice = optSessionAlice.get();
+            KeyPair longTermBob = optLongTermBob.get();
+            KeyPair sessionBob = optSessionBob.get();
 
             // Paranoia checks
             assertFalse(longTermAlice.equals(sessionAlice));
@@ -40,12 +50,13 @@ public class ECTest
 
             assertTrue(secretAlice.equals(secretBob));
 
-            byte digest[] = EC.getSHA256(secretAlice);
+            Optional<byte[]> optDigest = EC.getSHA256(secretAlice);
+            assertTrue(optDigest.isPresent());
+            assertTrue(optDigest.get().length * 8 == 256);
         }
         catch(Exception e)
         {
             fail("MQV Key exchange failed");
         }
-
     }
 }

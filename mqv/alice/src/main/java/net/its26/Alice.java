@@ -5,6 +5,11 @@ package net.its26;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.security.KeyPair;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECPoint;
+import java.util.Optional;
 
 public class Alice 
 {
@@ -15,11 +20,35 @@ public class Alice
     {
         try (Socket socket = new Socket(BOBS_IP, BOBS_PORT)) 
         {
-            String helloMessage = "Hello, Bob.";
-            System.out.println("Sending to Bob: " + helloMessage);
-            MQV.sendMessage(helloMessage.getBytes(), socket.getOutputStream());
-            String bobsReply = new String(MQV.receiveMessage(socket.getInputStream()));
-            System.out.println("Bob replied: " + bobsReply);
+            // Long term keys
+            assert(MQV.longTermKeyAlice.isPresent());
+            assert(MQV.longTermKeyBob.isPresent());
+            KeyPair longTermKeys = MQV.longTermKeyAlice.get();
+            // We are only using Bob's public long term key here 
+            ECPublicKey longTermPubKeyBob = (ECPublicKey)MQV.longTermKeyBob.get().getPublic();
+
+            // Generate Alice's session key pair
+            Optional<KeyPair> optSessionKeys = EC.generateKeyPair();
+            assert(optSessionKeys.isPresent());
+            KeyPair sessionKeys = optSessionKeys.get();
+
+            // Send public session Key to Bob
+            ECPublicKey sessionPubKeyAlice = (ECPublicKey)sessionKeys.getPublic();
+
+            byte[] txPublicSessionKeyMessage = MQV.generateMQVSessionKeyMessage(sessionPubKeyAlice);
+            MQV.sendMessage(txPublicSessionKeyMessage, socket.getOutputStream());
+
+            // Receive public session key from Bob
+            byte[] rxPublicSessionKeyMessage = MQV.receiveMessage(socket.getInputStream());
+            Optional<ECPublicKey> optSessionPubKeyBob = MQV.parseMQVSessionKeyMessage(rxPublicSessionKeyMessage, longTermPubKeyBob.getParams());
+            assert(optSessionPubKeyBob.isPresent());
+
+            // Calculate common secret, generate a hash out of it
+            ECPoint secret = EC.generateSecret(sessionKeys, (ECPrivateKey)longTermKeys.getPrivate(), optSessionPubKeyBob.get(), longTermPubKeyBob);
+            Optional<byte[]> optDigest = EC.getSHA256(secret);
+            assert(optDigest.isPresent());
+            System.out.println("Common hashed secret:");
+            MQV.printByteArray(secret.getAffineY().toByteArray());
         } 
         catch (IOException e) 
         {
