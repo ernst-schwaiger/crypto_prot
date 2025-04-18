@@ -34,6 +34,11 @@ public class MQV
         "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEgUFtyuoy+zHdvFAhvwOAykv+oc/aqtK2tuDleB8IzhV3rzEcDV5f5Ac2ROtVxCcZBugqeReVfWJALD8KxecPBA=="
     );
 
+    public static final Optional<KeyPair> longTermKeyEve = generateKeyPair(
+            "MIGTAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBHkwdwIBAQQgyh65AZE2SscNSsK3INVoHSJ8jXlg9v6aLYG2oW2QlbGgCgYIKoZIzj0DAQehRANCAARDkiz0syKgKhc5Ob619xE0xQBFYO7RvxBiTvoBmaII/NwtkWgsOJMvRUPl58IKYqCBknlzu9RCfV08r1bsCMjl",
+            "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQ5Is9LMioCoXOTm+tfcRNMUARWDu0b8QYk76AZmiCPzcLZFoLDiTL0VD5efCCmKggZJ5c7vUQn1dPK9W7AjI5Q=="
+    );
+
     private static Optional<KeyPair> generateKeyPair(String privateKeyStr, String publicKeyStr)
     {
         KeyPair ret = null;

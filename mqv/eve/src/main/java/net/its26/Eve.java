@@ -3,10 +3,6 @@
  */
 package net.its26;
 
-public class Eve 
-{
-    public static void main(String[] args) 
-    {
-        System.out.println("...");
-    }
+public class Eve {
+
 }
