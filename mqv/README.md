@@ -4,18 +4,23 @@ Menezes Qu Vanstone
 
 ## Build and run
 
+To build the Project:
 ```bash
 ./gradlew build
-./gradlew :bob:run
-./gradlew :alice:run
-./gradlew :eve:run
 ```
 
-## TODO
+To Start Bob (listener):
+```bash
+./gradlew :bob:run
+```
+Bob waits for a message from Alice
 
-Wikipedia https://en.wikipedia.org/wiki/MQV mentions
-"Note: for the algorithm to be secure some checks have to be performed. See Hankerson et al."
-- Samu: Research on Hankerson et al. (found by Lorenzo)
-- Stefan: Research attacks
-- Lorenzo: Finalize slide deck, integrate feedback
-- Ernst: Demo App using MQV (Elliptic Curve, optional RSA)
+
+To Start Alice (sender):
+```bash
+./gradlew :alice:run
+```
+- Alice initiates the session by sending the session key.
+- Bob responds by sending his session key.
+- Both parties display the calculated secrets.
+
