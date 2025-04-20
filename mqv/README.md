@@ -1,4 +1,5 @@
 # MQV
+Group 3: Lorenzo Haidinger, Samuel Kominek, Stefan Ohnewith, Ernst Schwaiger
 
 Menezes Qu Vanstone
 
