@@ -116,7 +116,7 @@ public class MITMTest {
         KeyPair sessionEve = EC.generateKeyPair().get();
         MQV.printByteArray(MQV.serializePubKey(getPublicKey(sessionEve.getPublic())));
 
-        System.out.println("...and sends his public session Key back to Alice (and Eve)...");
+        System.out.println("...and Bob sends his public session Key back to Alice (and Eve)...");
         MQV.printByteArray(MQV.serializePubKey(getPublicKey(sessionBob.getPublic())));
 
         System.out.println("Alice and Bob calculate their secrets (Bob uses A' vom Eve)...");
@@ -137,7 +137,7 @@ public class MITMTest {
         System.out.println("Bob's secret:");
         MQV.printByteArray(MQV.serializePubKey(secretBob));
 
-        System.out.println("Bob uses his secret to generate a key and send a secret to Alice");
+        System.out.println("Bob uses his secret to generate an AES key and to send a secret message to Alice");
         byte[] digestBob = EC.getSHA256(secretBob).get();
         SecretKey aesKeyBob = new SecretKeySpec(digestBob, "AES");
         Optional<Pair<byte[], byte[]>> bobsIVAndCiphertext = encrypt("This is very secret".getBytes(), aesKeyBob);
@@ -155,7 +155,7 @@ public class MITMTest {
         (ECPublicKey)longTermBob.getPublic()); // publicly known.
 
         System.out.println("Eves Secret:");
-        MQV.printByteArray(MQV.serializePubKey(secretAlice));
+        MQV.printByteArray(MQV.serializePubKey(secretEve));
         byte[] digestEve = EC.getSHA256(secretEve).get();
         SecretKey aesKeyEve = new SecretKeySpec(digestEve, "AES");
         
