@@ -119,7 +119,7 @@ public class MITMTest {
         System.out.println("...and Bob sends his public session Key back to Alice (and Eve)...");
         MQV.printByteArray(MQV.serializePubKey(getPublicKey(sessionBob.getPublic())));
 
-        System.out.println("Alice and Bob calculate their secrets (Bob uses A' vom Eve)...");
+        System.out.println("Alice and Bob calculate their secrets (Bob uses A', which he got from Eve)...");
 
         ECPoint secretAlice = EC.generateSecret(sessionAlice,
         (ECPrivateKey)longTermAlice.getPrivate(),
