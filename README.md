@@ -17,3 +17,9 @@ Basic cryptographic primitives implemented in Java, client-server protocol showc
 Menezes Qu Vanstone Key Exchange protocol implemented in Java
 
 [MQV](./mqv/README.md)
+
+## Merkle Signatures
+
+Merkle Signatures built ontop of Lamport One-Time Signatures implemented in Java
+
+[merkle](./merke/README.md)
