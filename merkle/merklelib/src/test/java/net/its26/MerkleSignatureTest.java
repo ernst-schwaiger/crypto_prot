@@ -7,14 +7,25 @@ import static org.junit.jupiter.api.Assertions.*;
 
 public class MerkleSignatureTest 
 {
-    @Test void testSomething()
+    @Test void testMerkleSignatures()
     {
-        String myMessageToSign = "Hollariediedoedeldie!";
-        MerkleTree merkleTree = new MerkleTree(2);
-        assertTrue(merkleTree != null);
+        
+        // Build a Merkle Tree providing 2^n one-time Keys
+        int n = 2;
+        MerkleTree merkleTree = new MerkleTree(n);
 
-        byte[] signature = merkleTree.sign(myMessageToSign.getBytes());
-        boolean result = merkleTree.verifySignature(myMessageToSign.getBytes(), signature);
-        assertTrue(result);
+        // Signing a message 2^n times must be successful
+        String myMessageToSign = "Hollariediedoedeldie!";
+
+        for (int i = 0; i < (1 << n); i++)
+        {
+            byte[] signature = merkleTree.sign(myMessageToSign.getBytes());
+            boolean result = MerkleTree.verifySignature(myMessageToSign.getBytes(), merkleTree.getPublicKey(), signature, n);
+            assertTrue(result);    
+        }
+
+        // We are now out of keys
+        byte[] signatureShallBeNull = merkleTree.sign(myMessageToSign.getBytes());
+        assertTrue(signatureShallBeNull == null);
     }    
 }

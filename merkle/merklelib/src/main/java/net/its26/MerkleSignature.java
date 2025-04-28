@@ -46,7 +46,7 @@ public class MerkleSignature
                 keyPairs[i] = keyPair;
             }
 
-            // Generate intermediate nodes and top noe of merkle tree from bottom up
+            // Generate intermediate nodes and top node of merkle tree from bottom up
             for (int level = n - 1; level >= 0; level--)
             {
                 int startIdx = (1 << level) - 1;
@@ -59,13 +59,18 @@ public class MerkleSignature
             }
         }
 
-        int getAvailableKeys()
+        public int getNumAvailableKeys()
         {
             return numAvailableKeys;
         }
 
-        byte[] sign(byte[] message)
-        {           
+        public byte[] getPublicKey()
+        {
+            return hashValueTree[0].getBytes();
+        }
+
+        public byte[] sign(byte[] message)
+        {
             int numLevels = (int)(Math.log(keyPairs.length) / Math.log(2.0));
 
             // contains sig', Y_i, and auth_0, ... auth_numLevels-1
@@ -73,11 +78,11 @@ public class MerkleSignature
 
             if (numAvailableKeys <= 0)
             {
-                throw new IllegalStateException("No more keys available.");
+                return null;
             }
 
             int tgtCopyIdx = 0;
-            int keyIdx = keyPairs.length - (numAvailableKeys);
+            int keyIdx = keyPairs.length - numAvailableKeys;
             // sig'
             byte[] sig1 = keyPairs[keyIdx].privateKey.sign(message);
             System.arraycopy(sig1, 0, ret, tgtCopyIdx, sig1.length);
@@ -90,35 +95,46 @@ public class MerkleSignature
 
             // get the auth_0, ..., auth_n hashes
             // Get the element in the Merkle Tree which corresponds to keyIdx
-            int hashIdx = (hashValueTree.length - numAvailableKeys) + keyIdx;
+            int hashIdx = (hashValueTree.length - keyPairs.length) + keyIdx;
+            int positionInfo = 0;
+            int positionInfoIdx = 0;
             while (hashIdx > 0)
             {
                 // This is the index of auth_n in the merkle tree
-                int siblingHashIdx = ((hashIdx % 2) == 0) ? hashIdx - 1 : hashIdx + 1;
+                boolean siblingIsToTheLeft = ((hashIdx % 2) == 0);
+                int siblingHashIdx = siblingIsToTheLeft ? hashIdx - 1 : hashIdx + 1;
+                if (siblingIsToTheLeft)
+                {
+                    positionInfo = positionInfo + (1 << positionInfoIdx);
+                }
                 byte[] auth_n_bytes = hashValueTree[siblingHashIdx].getBytes();
                 System.arraycopy(auth_n_bytes, 0, ret, tgtCopyIdx, auth_n_bytes.length);
                 tgtCopyIdx += auth_n_bytes.length;
 
                 // Continue with parent in the Merkle Tree
                 hashIdx = (hashIdx - 1) / 2;
+                positionInfoIdx++;
             }
+
+            // Append the position info as last byte
+            assert((positionInfo >= 0) && (positionInfo <= 255));
+            ret[ret.length - 1] = (byte)positionInfo;
 
             --numAvailableKeys;
 
             return ret;
         }
 
-        private int getMerkleSignatureByteLength(int numLevels)
+        private static int getMerkleSignatureByteLength(int numLevels)
         {
-            // contains sig', Y_i, and auth_0, ... auth_numLevels-1
-            return LamportSignature.NUM_BYTES_SIGNATURE + LamportSignature.NUM_BYTES_KEY + numLevels * NUM_BYTES_SHA_256_HASH;
+            // contains sig', Y_i, and auth_0, ... auth_numLevels-1, and the position info bits as last byte
+            return LamportSignature.NUM_BYTES_SIGNATURE + LamportSignature.NUM_BYTES_KEY + numLevels * NUM_BYTES_SHA_256_HASH + 1;
         }
 
-        public boolean verifySignature(byte[] message, byte[] signature)
+        public static boolean verifySignature(byte[] message, byte[] publicKey, byte[] signature, int n)
         {
             // check for proper merkle signature length
-            int numLevels = (int)(Math.log(keyPairs.length) / Math.log(2.0));
-            if (signature.length != getMerkleSignatureByteLength(numLevels))
+            if (signature.length != getMerkleSignatureByteLength(n))
             {
                 return false;
             }
@@ -126,8 +142,8 @@ public class MerkleSignature
             // Verify that sig1 actually matches the signature of message using Y_keyIdx.
             byte[] sig1 = Arrays.copyOfRange(signature, 0, LamportSignature.NUM_BYTES_SIGNATURE);
             byte[] Y_keyIdx = Arrays.copyOfRange(signature, LamportSignature.NUM_BYTES_SIGNATURE, LamportSignature.NUM_BYTES_SIGNATURE + LamportSignature.NUM_BYTES_KEY);
-            LamportSignature.PublicKey publicKey = new LamportSignature.PublicKey(Y_keyIdx);
-            if (!publicKey.verifySignature(message, sig1))
+            LamportSignature.PublicKey lamportPublicKey = new LamportSignature.PublicKey(Y_keyIdx);
+            if (!lamportPublicKey.verifySignature(message, sig1))
             {
                 return false;
             }
@@ -136,15 +152,31 @@ public class MerkleSignature
             byte[] hash = Common.SHA_256_MD.digest(Y_keyIdx);
             int hashIdx = LamportSignature.NUM_BYTES_SIGNATURE + LamportSignature.NUM_BYTES_KEY;
 
-            while (hashIdx < signature.length)
+            // positionInfo appended as last byte to the signature
+            int positionInfo = signature[signature.length - 1];
+            int positionInfoIdx = 0;
+            while (hashIdx < (signature.length - 1))
             {
                 byte[] auth_n = Arrays.copyOfRange(signature, hashIdx, hashIdx + NUM_BYTES_SHA_256_HASH);
-                Common.SHA_256_MD.update(hash);
-                hash = Common.SHA_256_MD.digest(auth_n);
+
+                // The position info tells us how to hash: h(hash||authinfo_n) or h(authinfo_n||hash)
+                if ((positionInfo & (1 << positionInfoIdx)) > 0)
+                {
+                    Common.SHA_256_MD.update(auth_n);
+                    hash = Common.SHA_256_MD.digest(hash);
+                }
+                else
+                {
+                    Common.SHA_256_MD.update(hash);
+                    hash = Common.SHA_256_MD.digest(auth_n);
+                }
+
                 hashIdx += NUM_BYTES_SHA_256_HASH;
+
+                positionInfoIdx++;
             }
 
-            return Arrays.areEqual(hash, this.hashValueTree[0].getBytes());
+            return Arrays.areEqual(hash, publicKey);
         }
     }
 }
