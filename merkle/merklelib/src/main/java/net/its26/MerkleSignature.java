@@ -32,7 +32,7 @@ public class MerkleSignature
         
         public MerkleTree(int n)
         {
-            assert((n > 1) && (n < 8));
+            assert((n > 1) && (n <= 8));
             numAvailableKeys = (1 << n);
             keyPairs = new LamportSignature.KeyPair[numAvailableKeys];
             

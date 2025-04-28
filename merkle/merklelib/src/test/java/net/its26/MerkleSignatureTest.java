@@ -21,7 +21,8 @@ public class MerkleSignatureTest
         {
             byte[] signature = merkleTree.sign(myMessageToSign.getBytes());
             boolean result = MerkleTree.verifySignature(myMessageToSign.getBytes(), merkleTree.getPublicKey(), signature, n);
-            assertTrue(result);    
+            assertTrue(result);
+            System.out.println("Signing & verification using key #" + i + " was successful.");
         }
 
         // We are now out of keys
