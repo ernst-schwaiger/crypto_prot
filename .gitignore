@@ -41,4 +41,5 @@ mqv/cryptolib/build
 mqv/alice/build
 mqv/bob/build
 mqv/eve/build
-
+merkle/build
+merkle/merklelib/build

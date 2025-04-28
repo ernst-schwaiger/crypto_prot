@@ -9,12 +9,13 @@ public class LamportSignatureTest
 {
     @Test void testOneTimeSignature() throws NoSuchAlgorithmException
     {
-        LamportSignature lamportSignature = new LamportSignature();
         String myMessage = "Hollariediedoedeldie ist zweites Futur bei Sonnenaufgang.";
         String fakedMessage = "Hollariediedoedeldie ist zweites Futur bei Sonnenaufgbng.";
 
-        byte[] signature = lamportSignature.privKey.sign(myMessage.getBytes());
-        assertTrue(lamportSignature.pubKey.verifySignature(myMessage.getBytes(), signature));
-        assertFalse(lamportSignature.pubKey.verifySignature(fakedMessage.getBytes(), signature));
+        LamportSignature.KeyPair keyPair = LamportSignature.generateKeyPair();
+
+        byte[] signature = keyPair.privateKey.sign(myMessage.getBytes());
+        assertTrue(keyPair.publicKey.verifySignature(myMessage.getBytes(), signature));
+        assertFalse(keyPair.publicKey.verifySignature(fakedMessage.getBytes(), signature));
     }    
 }

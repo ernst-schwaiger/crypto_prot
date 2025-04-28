@@ -1,47 +1,30 @@
 package net.its26;
 
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
 public class LamportSignature 
 {
-    public static final int NUM_BYTES_256_BIT_NUM = 32;
-    private static final MessageDigest SHA_256_MD = get256MessageDigest();
+    private static final int NUM_BYTES_256_BIT_NUM = 32;
+    public static final int NUM_BYTES_KEY = NUM_BYTES_256_BIT_NUM*2*256;
+    public static final int NUM_BYTES_SIGNATURE = NUM_BYTES_256_BIT_NUM * 256;
 
-    private static MessageDigest get256MessageDigest()
-    {
-        MessageDigest ret = null;
-        try
-        {
-            ret = MessageDigest.getInstance("SHA-256");
-        }
-        catch(NoSuchAlgorithmException e)
-        {
-            System.err.println("Error: Could not retrieve SHA-256 message digest");
-            System.exit(1);
-        }
-
-        return ret;
-    }
-
-    public final Key pubKey;
-    public final Key privKey;
-
-    public static class Key
+    private static class Key
     {
         private final byte[] vals;
 
-        public Key(byte[] vals) throws NoSuchAlgorithmException
+        public Key(byte[] vals)
         {
+            assert(vals.length == NUM_BYTES_KEY);
             this.vals = vals;
         }
 
-        public byte[] sign(byte[] message) 
+        public byte[] getBytes() { return vals; }
+
+        protected byte[] sign(byte[] message) 
         {
-            byte[] ret = new byte[NUM_BYTES_256_BIT_NUM * 256];
-            byte[] msgHash = SHA_256_MD.digest(message);
+            byte[] ret = new byte[NUM_BYTES_SIGNATURE];
+            byte[] msgHash = Common.SHA_256_MD.digest(message);
             assert (msgHash.length == NUM_BYTES_256_BIT_NUM);
             for (int bitPos = 0; bitPos < 256; bitPos++)
             {
@@ -53,16 +36,21 @@ public class LamportSignature
             return ret;
         }
 
-        public boolean verifySignature(byte[] message, byte[] signature) throws NoSuchAlgorithmException
+        protected boolean verifySignature(byte[] message, byte[] signature)
         {
+            if (signature.length != NUM_BYTES_SIGNATURE)
+            {
+                return false;
+            }
+
             byte[] hashSignature = sign(message);
-            byte[] signHashes = new byte[NUM_BYTES_256_BIT_NUM * 256];
+            byte[] signHashes = new byte[NUM_BYTES_SIGNATURE];
 
             int start = 0;
             for (int bitPos = 0; bitPos < 256; bitPos++)
             {
                 byte[] rangeToHash = Arrays.copyOfRange(signature, start, start + NUM_BYTES_256_BIT_NUM);
-                byte[] hashOfRange = SHA_256_MD.digest(rangeToHash);
+                byte[] hashOfRange = Common.SHA_256_MD.digest(rangeToHash);
                 System.arraycopy(hashOfRange, 0, signHashes, bitPos * NUM_BYTES_256_BIT_NUM, NUM_BYTES_256_BIT_NUM);
                 start += NUM_BYTES_256_BIT_NUM;
             }
@@ -71,27 +59,53 @@ public class LamportSignature
         }
     }
 
+    public static class PrivateKey extends Key
+    {
+        public PrivateKey(byte[] vals) { super(vals); }
+        public byte[] sign(byte[] message) { return super.sign(message); }
+    }
 
-    public LamportSignature() throws NoSuchAlgorithmException
+    public static class PublicKey extends Key
+    {
+        public PublicKey(byte[] vals) { super(vals); }
+
+        public boolean verifySignature(byte[] message, byte[] signature)
+        {
+            return super.verifySignature(message, signature);
+        }
+    }
+
+    public static class KeyPair
+    {
+        public final PrivateKey privateKey;
+        public final PublicKey publicKey;
+
+        public KeyPair(PrivateKey privateKey, PublicKey publicKey)
+        {
+            this.privateKey = privateKey;
+            this.publicKey = publicKey;
+        }
+    }
+
+    public static KeyPair generateKeyPair()
     {
         SecureRandom secureRandom = new SecureRandom();
 
-        // 256 val pairs, one for false, one for true
-        byte privKeyVals[] = new byte[NUM_BYTES_256_BIT_NUM*2*256];
+        // 256 val pairs, one val for false, one for true
+        byte privKeyVals[] = new byte[NUM_BYTES_KEY];
         secureRandom.nextBytes(privKeyVals);
         // Same for the public key, the corresponding hashes
-        byte pubKeyVals[] = new byte[NUM_BYTES_256_BIT_NUM*2*256];
+        byte pubKeyVals[] = new byte[NUM_BYTES_KEY];
 
         int start = 0;
         for (int i = 0; i < 256 * 2; i++)
         {
             byte[] rangeToHash = Arrays.copyOfRange(privKeyVals, start, start + NUM_BYTES_256_BIT_NUM);
-            byte[] hashOfRange = SHA_256_MD.digest(rangeToHash);
+            byte[] hashOfRange = Common.SHA_256_MD.digest(rangeToHash);
             System.arraycopy(hashOfRange, 0, pubKeyVals, start, hashOfRange.length);
             start += NUM_BYTES_256_BIT_NUM;
         }
 
-        privKey = new Key(privKeyVals);
-        pubKey = new Key(pubKeyVals);
-    }    
+        return new KeyPair(new PrivateKey(privKeyVals), new PublicKey(pubKeyVals));
+    }
 }

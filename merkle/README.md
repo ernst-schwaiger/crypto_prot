@@ -16,5 +16,5 @@ To build the Project:
 
 ## TODOs
 - Finish Merkle Signatures
-- Discuss: Communication pattern Alice, Bob required?
+- Open Topic: Communication pattern Alice, Bob required?
 - FIXME: Implement Attack scenario
