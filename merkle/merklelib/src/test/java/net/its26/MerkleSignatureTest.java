@@ -11,7 +11,7 @@ public class MerkleSignatureTest
     {
         
         // Build a Merkle Tree providing 2^n one-time Keys
-        int n = 2;
+        int n = 8;
         MerkleTree merkleTree = new MerkleTree(n);
 
         // Signing a message 2^n times must be successful
@@ -19,14 +19,16 @@ public class MerkleSignatureTest
 
         for (int i = 0; i < (1 << n); i++)
         {
-            byte[] signature = merkleTree.sign(myMessageToSign.getBytes());
+            MerkleSignature.Signature signature = merkleTree.sign(myMessageToSign.getBytes());
             boolean result = MerkleTree.verifySignature(myMessageToSign.getBytes(), merkleTree.getPublicKey(), signature, n);
             assertTrue(result);
             System.out.println("Signing & verification using key #" + i + " was successful.");
         }
 
         // We are now out of keys
-        byte[] signatureShallBeNull = merkleTree.sign(myMessageToSign.getBytes());
+        MerkleSignature.Signature signatureShallBeNull = merkleTree.sign(myMessageToSign.getBytes());
         assertTrue(signatureShallBeNull == null);
     }    
+
+
 }
