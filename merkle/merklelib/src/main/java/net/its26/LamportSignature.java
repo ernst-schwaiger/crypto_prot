@@ -3,6 +3,8 @@ package net.its26;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
+import net.its26.Common.IHashFunction;
+
 public class LamportSignature 
 {
     // 256 bits are contained in 32 bytes
@@ -16,11 +18,13 @@ public class LamportSignature
     private static class Key
     {
         private final byte[] vals;
+        private final IHashFunction hashFunction;
 
-        public Key(byte[] vals)
+        public Key(byte[] vals, IHashFunction hashFunction)
         {
             assert(vals.length == NUM_BYTES_KEY);
             this.vals = vals;
+            this.hashFunction = hashFunction;
         }
 
         public byte[] getBytes() { return vals; }
@@ -29,7 +33,7 @@ public class LamportSignature
         {
             byte[] ret = new byte[NUM_BYTES_SIGNATURE];
             // Get a 256 bit digest of the message to sign h(message)
-            byte[] msgHash = Common.SHA_256_MD.digest(message);
+            byte[] msgHash = hashFunction.hash(message);
 
             // For each bit of  h(message), either pick the "false" 256 bit hash, or the "true" 256 bit hash
             // The concatenated sequence of the 256 256-bit hashes is the Lamport signature
@@ -63,7 +67,7 @@ public class LamportSignature
             for (int bitPos = 0; bitPos < 256; bitPos++)
             {
                 byte[] rangeToHash = Arrays.copyOfRange(signature, start, start + NUM_BYTES_256_BIT_NUM);
-                byte[] hashOfRange = Common.SHA_256_MD.digest(rangeToHash);
+                byte[] hashOfRange = hashFunction.hash(rangeToHash);
                 System.arraycopy(hashOfRange, 0, signHashes, bitPos * NUM_BYTES_256_BIT_NUM, NUM_BYTES_256_BIT_NUM);
                 start += NUM_BYTES_256_BIT_NUM;
             }
@@ -75,14 +79,14 @@ public class LamportSignature
     // Private Key: Only the sign() method is public
     public static class PrivateKey extends Key
     {
-        public PrivateKey(byte[] vals) { super(vals); }
+        public PrivateKey(byte[] vals, IHashFunction hashFunction) { super(vals, hashFunction); }
         public byte[] sign(byte[] message) { return super.sign(message); }
     }
 
     // Public Key: Only the verifySignature() method is public
     public static class PublicKey extends Key
     {
-        public PublicKey(byte[] vals) { super(vals); }
+        public PublicKey(byte[] vals, IHashFunction hashFunction) { super(vals, hashFunction); }
 
         public boolean verifySignature(byte[] message, byte[] signature)
         {
@@ -102,7 +106,7 @@ public class LamportSignature
         }
     }
 
-    public static KeyPair generateKeyPair()
+    public static KeyPair generateKeyPair(IHashFunction hashFunction)
     {
         SecureRandom secureRandom = new SecureRandom();
 
@@ -116,11 +120,11 @@ public class LamportSignature
         for (int i = 0; i < 256 * 2; i++)
         {
             byte[] rangeToHash = Arrays.copyOfRange(privKeyVals, start, start + NUM_BYTES_256_BIT_NUM);
-            byte[] hashOfRange = Common.SHA_256_MD.digest(rangeToHash);
+            byte[] hashOfRange = hashFunction.hash(rangeToHash);
             System.arraycopy(hashOfRange, 0, pubKeyVals, start, hashOfRange.length);
             start += NUM_BYTES_256_BIT_NUM;
         }
 
-        return new KeyPair(new PrivateKey(privKeyVals), new PublicKey(pubKeyVals));
+        return new KeyPair(new PrivateKey(privKeyVals, hashFunction), new PublicKey(pubKeyVals, hashFunction));
     }
 }
