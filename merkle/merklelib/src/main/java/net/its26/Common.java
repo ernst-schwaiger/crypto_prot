@@ -26,11 +26,10 @@ public class Common
     public static class DumbHash implements IHashFunction
     {
     private static final BigInteger TWO_POW_256 = BigInteger.ONE.shiftLeft(256);
-    private static final int HASH_SIZE = 32; // 256 bits / 8
+    private static final int HASH_SIZE = 32; 
 
-    /**
-     * Nimmt das eingehende Byte-Array als vorzeichenlose Ganzzahl,
-     * rechnet x mod 2^256 und gibt das Ergebnis als 32-Byte-Array zurück.
+    /*
+      Einfache hashfunktion. Nimmt die Message modulo 256
      */
     @Override
     public byte[] hash(byte[] input) {
@@ -41,9 +40,8 @@ public class Common
         byte[] raw = h.toByteArray();
         byte[] out = new byte[HASH_SIZE];
 
-        // raw kann 33 Bytes haben, wenn das höchste Bit 1 ist (führendes 0-Byte)
         if (raw.length == HASH_SIZE + 1 && raw[0] == 0) {
-            // dann einfach das führende Null-Byte abschneiden
+            // wenn zu lang, führende Null-Byte abschneiden
             System.arraycopy(raw, 1, out, 0, HASH_SIZE);
         } else if (raw.length <= HASH_SIZE) {
             // bei kürzerem Array vorne mit Nullen auffüllen
