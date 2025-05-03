@@ -1,14 +1,8 @@
 package net.its26;
 
 import org.junit.jupiter.api.Test;
-
-import net.its26.Common.DumbHash;
-import net.its26.Common.IHashFunction;
 import net.its26.MerkleSignature.MerkleTree;
-
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import java.util.Arrays;
 
 public class HashTest 
@@ -31,13 +25,6 @@ public class HashTest
         System.out.println(bytesToBitString(hashwert));
     }
 
-    private static String bytesToHex(byte[] bytes) {
-        StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (byte b : bytes) {
-            sb.append(String.format("%02x", b & 0xFF));
-        }
-        return sb.toString();
-    }
     public static String bytesToBitString(byte[] bytes) {
         StringBuilder sb = new StringBuilder(bytes.length * 8);
         for (byte b : bytes) {
