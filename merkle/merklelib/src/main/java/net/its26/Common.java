@@ -1,5 +1,6 @@
 package net.its26;
 
+import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
@@ -22,24 +23,38 @@ public class Common
         }
     }
     
-    private static class DumbHash implements IHashFunction
+    public static class DumbHash implements IHashFunction
     {
-        private final byte[] hashValue;
-        public DumbHash()
-        {
-            hashValue = new byte[32]; // According to Java spec, filled with zeros
+    private static final BigInteger TWO_POW_256 = BigInteger.ONE.shiftLeft(256);
+    private static final int HASH_SIZE = 32; // 256 bits / 8
+
+    /**
+     * Nimmt das eingehende Byte-Array als vorzeichenlose Ganzzahl,
+     * rechnet x mod 2^256 und gibt das Ergebnis als 32-Byte-Array zurück.
+     */
+    @Override
+    public byte[] hash(byte[] input) {
+        // BigInteger mit positivem Vorzeichen
+        BigInteger x = new BigInteger(1, input);
+        BigInteger h = x.mod(TWO_POW_256);
+
+        byte[] raw = h.toByteArray();
+        byte[] out = new byte[HASH_SIZE];
+
+        // raw kann 33 Bytes haben, wenn das höchste Bit 1 ist (führendes 0-Byte)
+        if (raw.length == HASH_SIZE + 1 && raw[0] == 0) {
+            // dann einfach das führende Null-Byte abschneiden
+            System.arraycopy(raw, 1, out, 0, HASH_SIZE);
+        } else if (raw.length <= HASH_SIZE) {
+            // bei kürzerem Array vorne mit Nullen auffüllen
+            System.arraycopy(raw, 0, out, HASH_SIZE - raw.length, raw.length);
+        } else {
+            // die letzten 32 Bytes nehmen falls zu lang
+            System.arraycopy(raw, raw.length - HASH_SIZE, out, 0, HASH_SIZE);
         }
 
-        // Hash function with lots of great properties
-        // * fast
-        // * deterministic
-        // * totally pre-image resistant
-        // * ...
-        // TODO: Check if there are other properties that must be met
-        public byte[] hash(byte[] input)
-        {
-            return hashValue;
-        }
+        return out;
+    }
     }
 
     private static MessageDigest get256MessageDigest()
