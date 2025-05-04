@@ -1,7 +1,7 @@
 # Merkle Signatures
 Group 3: Lorenzo Haidinger, Samuel Kominek, Stefan Ohnewith, Ernst Schwaiger
 
-Implementation of a Merkle Tree using One-Time Lamport Key Pairs for signing messages-
+Implementation of a Merkle Tree using One-Time Lamport Key Pairs for signing messages.
 
 ## Preconditions
 
