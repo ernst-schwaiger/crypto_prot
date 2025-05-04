@@ -18,6 +18,8 @@
 *.zip
 *.tar.gz
 *.rar
+*.html
+*.bin
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
@@ -36,10 +38,10 @@ basics/server/build
 basics/server/src/main/resources
 basics/cryptolib/build
 basics/KeysAndCerts/generated
+merkle/build
+merkle/merklelib/build
 mqv/build
 mqv/cryptolib/build
 mqv/alice/build
 mqv/bob/build
 mqv/eve/build
-merkle/build
-merkle/merklelib/build

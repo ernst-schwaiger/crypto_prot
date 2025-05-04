@@ -25,3 +25,9 @@ java {
 test {
     useJUnitPlatform()
 }
+
+task runKeyRecoveryAttack(type: JavaExec) {
+    mainClass = 'net.its26.KeyRecoveryAttack'
+    classpath = sourceSets.main.runtimeClasspath
+}
+

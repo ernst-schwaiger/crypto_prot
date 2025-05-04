@@ -22,4 +22,4 @@ Menezes Qu Vanstone Key Exchange protocol implemented in Java
 
 Merkle Signatures built ontop of Lamport One-Time Signatures implemented in Java
 
-[merkle](./merke/README.md)
+[merkle](./merkle/README.md)
