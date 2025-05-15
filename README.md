@@ -23,3 +23,9 @@ Menezes Qu Vanstone Key Exchange protocol implemented in Java
 Merkle Signatures built ontop of Lamport One-Time Signatures implemented in Java
 
 [merkle](./merkle/README.md)
+
+## Needham-Schroeder Protocol
+
+Protocol for exchanging symmetric/asymmetric keys, implemented in Java
+
+[merkle](./needham_schroeder/README.md)

@@ -45,3 +45,11 @@ mqv/cryptolib/build
 mqv/alice/build
 mqv/bob/build
 mqv/eve/build
+needham_schroeder/alice/bin
+needham_schroeder/alice/build
+needham_schroeder/bob/bin
+needham_schroeder/bob/build
+needham_schroeder/server/bin
+needham_schroeder/server/build
+needham_schroeder/cryptolib/bin
+needham_schroeder/cryptolib/build
