@@ -28,4 +28,4 @@ Merkle Signatures built ontop of Lamport One-Time Signatures implemented in Java
 
 Protocol for exchanging symmetric/asymmetric keys, implemented in Java
 
-[merkle](./needham_schroeder/README.md)
+[needham_schoeder](./needham_schroeder/README.md)
