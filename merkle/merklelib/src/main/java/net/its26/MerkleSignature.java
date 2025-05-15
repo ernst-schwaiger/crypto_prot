@@ -17,21 +17,6 @@ public class MerkleSignature
         {
             this.hashValBytes = hashValBytes;
         }
-
-        // // Constructor for the leaves of the Merkle Tree: Hashes of the Lamport Public Keys.
-        // public HashValue(LamportSignature.PublicKey publicKey)
-        // {
-        //     hashValBytes = Common.SHA_256_MD.digest(publicKey.getBytes());
-        // }
-
-        // // Constructor for the intermediate nodes and the root node of the Merkle Tree: Hash of the
-        // // concatenation of the two child nodes.
-        // public HashValue(HashValue firstChild, HashValue lastChild)
-        // {
-        //     Common.SHA_256_MD.update(firstChild.getBytes());
-        //     hashValBytes = Common.SHA_256_MD.digest(lastChild.getBytes());
-        // }
-
         public byte[] getBytes() { return hashValBytes; }
     }
 
