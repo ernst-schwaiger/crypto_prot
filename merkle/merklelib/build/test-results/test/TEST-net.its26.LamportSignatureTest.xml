@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="net.its26.LamportSignatureTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2025-04-27T05:32:31.903Z" hostname="StudiNotebook" time="0.041">
-  <properties/>
-  <testcase name="testOneTimeSignature()" classname="net.its26.LamportSignatureTest" time="0.041"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>
