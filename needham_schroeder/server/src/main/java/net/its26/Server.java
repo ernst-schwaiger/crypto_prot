@@ -76,7 +76,7 @@ public class Server
 
                 if (msgId == Common.NHS.SESSION_KEY_REQUEST.id)
                 {
-                        Optional<byte[]> optResponse = processSymmetricSessionKeyRequest(data);
+                        Optional<byte[]> optResponse = processSessionKeyRequest(data);
                         if (optResponse.isPresent())
                         {
                             Common.sendMessage(optResponse.get(), clientSocket.getOutputStream());
@@ -95,10 +95,10 @@ public class Server
         }
     }
 
-    private static Optional<byte[]> processSymmetricSessionKeyRequest(byte[] request)
+    private static Optional<byte[]> processSessionKeyRequest(byte[] request)
     {
         Optional<byte[]> ret = Optional.empty();
-        Optional<Common.SessionInfo> optSessionInfo = Common.parseSymmetricSessionKeyRequest(request);
+        Optional<Common.SessionInfo> optSessionInfo = Common.parseSessionKeyRequest(request);
 
         if (optSessionInfo.isPresent())
         {
@@ -113,7 +113,7 @@ public class Server
                 {
                     byte[] sessionKeyData = optSessionKey.get().getEncoded();
 
-                    ret = Common.generateSymmetricSessionKeyResponse(optSessionInfo.get().userLocal, 
+                    ret = Common.generateSessionKeyResponse(optSessionInfo.get().userLocal, 
                             optSessionInfo.get().userRemote, 
                             optNonce.get().intValue(), 
                             sessionKeyData, 

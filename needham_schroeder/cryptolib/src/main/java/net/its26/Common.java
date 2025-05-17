@@ -38,14 +38,14 @@ public class Common
         public final int userRemote;
         public final Optional<Integer> optNonce;
         public final byte[] sessionKey;
-        public final byte[] payloadRemote;
+        public final Optional<byte[]> optPayloadRemote;
 
-        public SessionResponseInfo(int userRemote, Optional<Integer> optNonce, byte[] sessionKey, byte[] payloadRemote)
+        public SessionResponseInfo(int userRemote, Optional<Integer> optNonce, byte[] sessionKey, Optional<byte[]> optPayloadRemote)
         {
             this.userRemote = userRemote;
             this.optNonce = optNonce;
             this.sessionKey = sessionKey;
-            this.payloadRemote = payloadRemote;
+            this.optPayloadRemote = optPayloadRemote;
         }
     }
 
@@ -314,7 +314,7 @@ public class Common
     }
 
     // Generates the SESSION_KEY_REQUEST message, sent from Alice to the Server
-    public static byte[] generateSymmetricSessionKeyRequest(int idLocal, int idRemote, int nonce)
+    public static byte[] generateSessionKeyRequest(int idLocal, int idRemote, int nonce)
     {
         Serializer s = new Serializer();
         s
@@ -326,7 +326,7 @@ public class Common
     }
 
     // Parses the SESSION_KEY_REQUEST message, sent from Alice to the Server
-    public static Optional<SessionInfo> parseSymmetricSessionKeyRequest(byte[] data)
+    public static Optional<SessionInfo> parseSessionKeyRequest(byte[] data)
     {
         Optional<SessionInfo> ret = Optional.empty();
         
@@ -351,7 +351,7 @@ public class Common
     }
 
     // Generates the SESSION_KEY_RESPONSE message, sent from the Server back to Alice
-    public static Optional<byte[]> generateSymmetricSessionKeyResponse(int idLocal, int idRemote, int nonce, byte[] sessionKey, byte[] keyLocalServer, byte[] keyRemoteServer)
+    public static Optional<byte[]> generateSessionKeyResponse(int idLocal, int idRemote, int nonce, byte[] sessionKey, byte[] keyLocalServer, byte[] keyRemoteServer)
     {
         assert(sessionKey.length == SIZE_AES_KEY_BYTES);
         assert(keyRemoteServer.length == SIZE_AES_KEY_BYTES);
@@ -399,7 +399,7 @@ public class Common
     }
 
     // Parses the SESSION_KEY_RESPONSE message, sent from the Server back to Alice
-    public static Optional<SessionResponseInfo> parseSymmetricSessionKeyResponse(byte[] data, byte[] keyLocalServer)
+    public static Optional<SessionResponseInfo> parseSessionKeyResponse(byte[] data, byte[] keyLocalServer)
     {
         // will contain the session key and the Id of the local node, encrypted with the key shared by the server and the remote node
         Optional<SessionResponseInfo> ret = Optional.empty();
@@ -420,9 +420,9 @@ public class Common
                 int nonce = d2.dser4();
                 byte[] sessionKeyData = d2.dserN(SIZE_AES_KEY_BYTES);
                 int userRemote = d2.dser4();
-                byte[] payloadRemote = d2.dserN(d2.size());
+                Optional<byte[]> optPayloadRemote = Optional.of(d2.dserN(d2.size()));
 
-                ret = Optional.of(new SessionResponseInfo(userRemote, Optional.of(Integer.valueOf(nonce)), sessionKeyData, payloadRemote));
+                ret = Optional.of(new SessionResponseInfo(userRemote, Optional.of(Integer.valueOf(nonce)), sessionKeyData, optPayloadRemote));
             }
         }
 
@@ -430,14 +430,14 @@ public class Common
     }
 
     // Generates the SESSION_REQUEST message, sent from Alice to Bob
-    public static byte[] generateSymmetricSessionRequest(byte[] encryptedDataForRemote)
+    public static byte[] generateSessionRequest(byte[] encryptedDataForRemote)
     {
         Serializer s = new Serializer();
         return s.ser4(NHS.SESSION_REQUEST.id).serN(encryptedDataForRemote).serialized;
     }
 
     // Parses the SESSION_REQUEST message, sent from Alice to Bob
-    public static Optional<SessionResponseInfo> parseSymmetricSessionRequest(byte[] request, byte[] keyLocalServer)
+    public static Optional<SessionResponseInfo> parseSessionRequest(byte[] request, byte[] keyLocalServer)
     {
         Optional<SessionResponseInfo> ret = Optional.empty();
         Deserializer d = new Deserializer(request);
@@ -456,7 +456,7 @@ public class Common
                 Deserializer d2 = new Deserializer(optClearText.get());
                 byte[] sessionKey = d2.dserN(d2.size() - SIZE_INT_BYTES);
                 int remoteId = d2.dser4();
-                ret = Optional.of(new SessionResponseInfo(remoteId, Optional.empty(), sessionKey, null));
+                ret = Optional.of(new SessionResponseInfo(remoteId, Optional.empty(), sessionKey, Optional.empty()));
             }
         }
 
@@ -482,13 +482,13 @@ public class Common
     }
 
     // Generates the SESSION_RESPONSE message, sent from Bob to Alice
-    public static Optional<byte[]> generateSymmetricSessionResponse(int nonce, byte[] sessionKey)
+    public static Optional<byte[]> generateSessionResponse(int nonce, byte[] sessionKey)
     {
         return generateEncryptedNonceWithMsgId(NHS.SESSION_RESPONSE.id, nonce, sessionKey);
     }
 
     // Parses the SESSION_RESPONSE message, sent from Bob to Alice
-    public static Optional<Integer> parseSymmetricSessionResponse(byte[] request, byte[] sessionKey)
+    public static Optional<Integer> parseSessionResponse(byte[] request, byte[] sessionKey)
     {
         Optional<Integer> ret = Optional.empty();
         Deserializer d = new Deserializer(request);
@@ -512,15 +512,15 @@ public class Common
     }
 
     // Generates the SESSION_FINISH message, sent from Alice to Bob
-    public static Optional<byte[]> generateSymmetricSessionResponseAck(int nonce, byte[] sessionKey)
+    public static Optional<byte[]> generateSessionResponseAck(int nonce, byte[] sessionKey)
     {
         return generateEncryptedNonceWithMsgId(NHS.SESSION_FINISH.id, nonce, sessionKey);
     }
 
     // Parses the SESSION_FINISH message, sent from Alice to Bob
-    public static Optional<Integer> parseSymmetricSessionResponseAck(byte[] request, byte[] sessionKey)
+    public static Optional<Integer> parseSessionResponseAck(byte[] request, byte[] sessionKey)
     {
-        return parseSymmetricSessionResponse(request, sessionKey);
+        return parseSessionResponse(request, sessionKey);
     }
 
     public static int generateNonce()

@@ -39,12 +39,12 @@ public class Bob
 
                     if (msgId == Common.NHS.SESSION_REQUEST.id)
                     {
-                        optSri = Common.parseSymmetricSessionRequest(data, Common.AES_KEY_SERVER_BOB);                            
+                        optSri = Common.parseSessionRequest(data, Common.AES_KEY_SERVER_BOB);                            
                         if (optSri.isPresent())
                         {
                             // Encrypt a new nonce with the received session key, send to remote client
                             optNonce = Optional.of(Integer.valueOf(Common.generateNonce()));
-                            Optional<byte[]> optResponse = Common.generateSymmetricSessionResponse(optNonce.get().intValue(), optSri.get().sessionKey);
+                            Optional<byte[]> optResponse = Common.generateSessionResponse(optNonce.get().intValue(), optSri.get().sessionKey);
                             if (optResponse.isPresent())
                             {
                                 Common.sendMessage(optResponse.get(), clientSocket.getOutputStream());
@@ -55,7 +55,7 @@ public class Bob
                     {
                         if (optSri.isPresent())
                         {
-                            Optional<Integer> optNonce2 = Common.parseSymmetricSessionResponseAck(data, optSri.get().sessionKey);
+                            Optional<Integer> optNonce2 = Common.parseSessionResponseAck(data, optSri.get().sessionKey);
                             if (optNonce2.isPresent() && optNonce.isPresent() && (optNonce2.get().intValue() == optNonce.get().intValue() - 1))
                             {
                                 // We are done, send a message back to Alice
