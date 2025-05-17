@@ -3,11 +3,79 @@
  */
 package net.its26;
 
+import java.io.IOException;
+import java.net.Socket;
+import java.util.Optional;
+
+import net.its26.Common.SessionResponseInfo;
+
 public class Alice 
 {
-
     public static void main(String[] args) 
     {
-        System.out.println("Hello, I am Alice.");
+        try (
+            Socket socketServer = new Socket(Common.SERVER_IP_ADDRESS, Common.SERVER_LISTEN_PORT);
+            Socket socketBob = new Socket(Common.BOB_IP_ADDRESS, Common.BOB_LISTEN_PORT)) 
+        {
+            int nonce = Common.generateNonce();
+            byte[] request = Common.generateSymmetricSessionKeyRequest(Common.ID_ALICE, Common.ID_BOB, nonce);
+            Common.sendMessage(request, socketServer.getOutputStream());
+
+            // Verify correct message id
+            byte[] serverResponse = Common.receiveMessage(socketServer.getInputStream());
+            if (Common.getMessageId(serverResponse) != Common.NHS.SESSION_KEY_RESPONSE.id)
+            {
+                return;
+            }
+
+            // Verify session info from server
+            Optional<SessionResponseInfo> optResponseInfo = Common.parseSymmetricSessionKeyResponse(serverResponse, Common.AES_KEY_SERVER_ALICE);
+
+            if (!optResponseInfo.isPresent() || 
+                !optResponseInfo.get().optNonce.isPresent() || 
+                optResponseInfo.get().optNonce.get().intValue() != nonce ||
+                optResponseInfo.get().userRemote != Common.ID_BOB)
+            {
+                return;
+            }
+
+            // Forward encrypted payload to Bob
+            byte[] sessionRequestToBob = Common.generateSymmetricSessionRequest(optResponseInfo.get().payloadRemote);
+            Common.sendMessage(sessionRequestToBob, socketBob.getOutputStream());
+
+            byte[] responseBob = Common.receiveMessage(socketBob.getInputStream());
+            // Verify correct message id from Bob            
+            if (Common.getMessageId(responseBob) != Common.NHS.SESSION_RESPONSE.id)
+            {
+                return;
+            }
+            // Verify correctly received nonce from Bob
+            Optional<Integer> optNonce = Common.parseSymmetricSessionResponse(responseBob, optResponseInfo.get().sessionKey);
+            if (!optNonce.isPresent())
+            {
+                return;
+            }
+
+            // Reduce Nonce by one to prove we are in fact Alice
+            int nonce2 = (optNonce.get().intValue()) - 1;
+            Optional<byte[]> optResponseAck = Common.generateSymmetricSessionResponseAck(nonce2, optResponseInfo.get().sessionKey);
+
+            if (optResponseAck.isPresent())
+            {
+                Common.sendMessage(optResponseAck.get(), socketBob.getOutputStream());
+            }
+
+            byte[] finalMessageBob = Common.receiveMessage(socketBob.getInputStream());
+            Optional<byte[]> optFinalMsgBobPlain = Common.makeClearText(finalMessageBob, optResponseInfo.get().sessionKey);
+            if (optFinalMsgBobPlain.isPresent())
+            {
+                System.out.println("Received message from Bob:");
+                System.out.println(new String(optFinalMsgBobPlain.get()));
+            }
+        } 
+        catch (IOException e) 
+        {
+            e.printStackTrace();
+        }
     }
 }

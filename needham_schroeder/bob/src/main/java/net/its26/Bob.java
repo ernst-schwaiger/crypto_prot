@@ -3,11 +3,101 @@
  */
 package net.its26;
 
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Optional;
+
+import net.its26.Common.SessionResponseInfo;
+
 public class Bob 
 {
 
     public static void main(String[] args) 
     {
-        System.out.println("Hello, I am Bob.");
+        try (ServerSocket serverSocket = new ServerSocket(Common.BOB_LISTEN_PORT)) 
+        {
+            System.out.println("Bob is listening on port " + Common.BOB_LISTEN_PORT);
+            System.out.flush();
+
+            while (true) 
+            {
+                // Accept an incoming client connection
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("New client connected: " + clientSocket.getInetAddress());
+                System.out.flush();
+
+                Optional<SessionResponseInfo> optSri = Optional.empty();
+                Optional<Integer> optNonce = Optional.empty();
+                boolean finished = false;
+
+                while (!finished)
+                {
+                    byte[] data = Common.receiveMessage(clientSocket.getInputStream());
+                    int msgId = Common.getMessageId(data);
+
+                    if (msgId == Common.NHS.SESSION_REQUEST.id)
+                    {
+                        optSri = Common.parseSymmetricSessionRequest(data, Common.AES_KEY_SERVER_BOB);                            
+                        if (optSri.isPresent())
+                        {
+                            // Encrypt a new nonce with the received session key, send to remote client
+                            optNonce = Optional.of(Integer.valueOf(Common.generateNonce()));
+                            Optional<byte[]> optResponse = Common.generateSymmetricSessionResponse(optNonce.get().intValue(), optSri.get().sessionKey);
+                            if (optResponse.isPresent())
+                            {
+                                Common.sendMessage(optResponse.get(), clientSocket.getOutputStream());
+                            }
+                        }
+                    }
+                    else if (msgId == Common.NHS.SESSION_FINISH.id)
+                    {
+                        if (optSri.isPresent())
+                        {
+                            Optional<Integer> optNonce2 = Common.parseSymmetricSessionResponseAck(data, optSri.get().sessionKey);
+                            if (optNonce2.isPresent() && optNonce.isPresent() && (optNonce2.get().intValue() == optNonce.get().intValue() - 1))
+                            {
+                                // We are done, send a message back to Alice
+                                Optional<byte[]> optMsg = generateEncryptedMessage(optSri.get().sessionKey);
+                                if (optMsg.isPresent())
+                                {
+                                    Common.sendMessage(optMsg.get(), clientSocket.getOutputStream());
+                                    System.out.println("Successfully finished Needham-Schroeder.");
+                                }
+
+                                finished = true; // success
+                            }
+                        }
+                    }
+                    else
+                    {
+                        finished = true;
+                    }
+                }
+
+                // Close the client socket once the communication is done
+                clientSocket.close();
+                System.out.println("Client disconnected.");
+                System.out.flush();  
+                finished = false;              
+            }
+        }
+        catch (Exception e) 
+        {
+            e.printStackTrace();
+        }
+    }
+
+    private static Optional<byte[]> generateEncryptedMessage(byte[] sessionKey)
+    {
+        LocalDateTime now = LocalDateTime.now();
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+        // Format and convert to String
+        String formattedDateTime = now.format(formatter);
+        String msg = "Session Key accepted and verified Alices identity at: " + formattedDateTime;
+
+        return Common.makeIVAndCiphertext(msg.getBytes(), sessionKey);
     }
 }

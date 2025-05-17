@@ -3,11 +3,126 @@
  */
 package net.its26;
 
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+
+import javax.crypto.SecretKey;
+
 public class Server 
 {
+    private static class User
+    {
+        public final int id;
+        public final byte[] userServerKey;
+
+        public User(int id, byte[] userServerKey)
+        {
+            this.id = id;
+            this.userServerKey = userServerKey;
+        }
+    }
+
+    private static class UserDB
+    {
+        private final Map<Integer, User> users;
+
+        public UserDB(List<User> userList)
+        {
+            this.users = new HashMap<>();
+            for (User user: userList)
+            {
+                this.users.put(Integer.valueOf(user.id), user);
+            }
+        }
+
+        Optional<User> getUserById(int id)
+        {
+            User user = users.get(id);
+            return Optional.ofNullable(user);
+        }
+    }
+
+    private static final User USER_ALICE = new User(Common.ID_ALICE,Common.AES_KEY_SERVER_ALICE);
+    private static final User USER_BOB = new User(Common.ID_BOB, Common.AES_KEY_SERVER_BOB);
+    private static final UserDB USER_DB;
+    
+    static
+    {
+        USER_DB = new UserDB(Arrays.asList(USER_ALICE, USER_BOB));
+    }
 
     public static void main(String[] args) 
     {
-        System.out.println("Hello, I am the Server.");
+        try (ServerSocket serverSocket = new ServerSocket(Common.SERVER_LISTEN_PORT)) 
+        {
+            System.out.println("Server is listening on port " + Common.SERVER_LISTEN_PORT);
+            System.out.flush();
+
+            while (true) 
+            {
+                // Accept an incoming client connection
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("New client connected: " + clientSocket.getInetAddress());
+                System.out.flush();
+
+                byte[] data = Common.receiveMessage(clientSocket.getInputStream());
+
+                int msgId = Common.getMessageId(data);
+
+                if (msgId == Common.NHS.SESSION_KEY_REQUEST.id)
+                {
+                        Optional<byte[]> optResponse = processSymmetricSessionKeyRequest(data);
+                        if (optResponse.isPresent())
+                        {
+                            Common.sendMessage(optResponse.get(), clientSocket.getOutputStream());
+                        }
+                }
+
+                // Close the client socket once the communication is done
+                clientSocket.close();
+                System.out.println("Client disconnected.");
+                System.out.flush();                
+            }
+        }
+        catch (Exception e) 
+        {
+            e.printStackTrace();
+        }
+    }
+
+    private static Optional<byte[]> processSymmetricSessionKeyRequest(byte[] request)
+    {
+        Optional<byte[]> ret = Optional.empty();
+        Optional<Common.SessionInfo> optSessionInfo = Common.parseSymmetricSessionKeyRequest(request);
+
+        if (optSessionInfo.isPresent())
+        {
+            Optional<User> optUser1 = USER_DB.getUserById(optSessionInfo.get().userLocal);
+            Optional<User> optUser2 = USER_DB.getUserById(optSessionInfo.get().userRemote);
+            Optional<Integer> optNonce = optSessionInfo.get().optNonce;
+
+            if (optUser1.isPresent() && optUser2.isPresent() && optNonce.isPresent())
+            {
+                Optional<SecretKey> optSessionKey = Common.generateKey();
+                if (optSessionKey.isPresent())
+                {
+                    byte[] sessionKeyData = optSessionKey.get().getEncoded();
+
+                    ret = Common.generateSymmetricSessionKeyResponse(optSessionInfo.get().userLocal, 
+                            optSessionInfo.get().userRemote, 
+                            optNonce.get().intValue(), 
+                            sessionKeyData, 
+                            optUser1.get().userServerKey, 
+                            optUser2.get().userServerKey);
+                }
+            }
+        }
+
+        return ret;
     }
 }
