@@ -16,19 +16,41 @@ To build the Project:
 ./gradlew build
 ```
 
-To start the server (listener):
+### Run Needham-Schroeder without attack
+
+Start the server (listener):
 ```bash
 ./gradlew :server:run
 ```
 
-To start bob (listener):
+Start bob (listener):
 ```bash
 ./gradlew :bob:run
 ```
 
 Both server node and Bob are listening for a request from Alice
 
-To start Alice (sender):
+Start Alice (sender):
 ```bash
 ./gradlew :alice:run
 ```
+
+If successful, Alice should receive an encrypted message from Bob, which Alice can decrypt to
+``Session Key accepted and verified Alices identity at: <date-time>``
+
+### Run Needham-Schroeder without attack
+
+Start bob (listener):
+```bash
+./gradlew :bob:run
+```
+
+Bob is listening for a request from Alice
+
+Start Mallory (sender):
+```bash
+./gradlew :mallory:run
+```
+
+If successful, Mallory should receive an encrypted message from Bob, which Mallory can decrypt to
+``Session Key accepted and verified Alices identity at: <date-time>``
