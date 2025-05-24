@@ -359,17 +359,11 @@ public class Common
 
         Optional<byte[]> ret = Optional.empty();
 
-        SecretKey aesKeyRemoteServer = generateAES128BitKey(keyRemoteServer);
         SecretKey aesKeyLocalServer = generateAES128BitKey(keyLocalServer);
 
-        // Session Key and Local id, to be encrypted with the AES key the server shares with the remote participant
-        Serializer sRemote = new Serializer();
-        sRemote
-            .serN(sessionKey)
-            .ser4(idLocal);
-        Optional<Pair<byte[], byte[]>> optIVAndCiphertextRemote = encrypt(sRemote.serialized, aesKeyRemoteServer);
+        Optional<byte[]> optEncryptedSessionRequest = generateEncryptedSessionRequest(idLocal, sessionKey, keyRemoteServer);
 
-        if (optIVAndCiphertextRemote.isPresent())
+        if (optEncryptedSessionRequest.isPresent())
         {
             Serializer sPlain = new Serializer();
 
@@ -377,8 +371,7 @@ public class Common
                 .ser4(nonce)
                 .serN(sessionKey)
                 .ser4(idRemote)
-                .serN(optIVAndCiphertextRemote.get().first)
-                .serN(optIVAndCiphertextRemote.get().last);
+                .serN(optEncryptedSessionRequest.get());
 
             Optional<Pair<byte[], byte[]>> optIVAndCiphertextAll = encrypt(sPlain.serialized, aesKeyLocalServer);
 
@@ -393,6 +386,29 @@ public class Common
 
                 ret = Optional.of(sCipher.serialized);
             }
+        }
+
+        return ret;
+    }
+
+    public static Optional<byte[]> generateEncryptedSessionRequest(int idLocal, byte[] sessionKey, byte[] keyRemoteServer)
+    {
+        Optional<byte[]> ret = Optional.empty();
+        SecretKey aesKeyRemoteServer = generateAES128BitKey(keyRemoteServer);
+        Serializer sRemote = new Serializer();
+        sRemote
+            .serN(sessionKey)
+            .ser4(idLocal);
+        Optional<Pair<byte[], byte[]>> optIVAndCiphertextRemote = encrypt(sRemote.serialized, aesKeyRemoteServer);    
+        
+        if (optIVAndCiphertextRemote.isPresent())
+        {
+            Serializer encrypted = new Serializer();
+            encrypted
+                .serN(optIVAndCiphertextRemote.get().first)
+                .serN(optIVAndCiphertextRemote.get().last);
+
+            ret = Optional.of(encrypted.serialized);
         }
 
         return ret;

@@ -93,4 +93,18 @@ public class CommonTest
 
         assertEquals(nonceBob - 1, optNonceFromAlice.get().intValue());
     }
+
+    @Test
+    void testgenSessionRequestMessage()
+    {
+        byte[] sessionKey = 
+        { 
+            (byte)0xaf, (byte)0xfe, (byte)0xaf, (byte)0xfe, (byte)0xaf, (byte)0xfe, (byte)0xaf, (byte)0xfe,
+            (byte)0xaf, (byte)0xfe, (byte)0xaf, (byte)0xfe, (byte)0xaf, (byte)0xfe, (byte)0xaf, (byte)0xfe
+        };
+
+        Optional<byte[]> optSessionRequest = Common.generateEncryptedSessionRequest(Common.ID_ALICE, sessionKey, Common.AES_KEY_SERVER_BOB);
+        assert(optSessionRequest.isPresent());
+        Common.printByteArray(optSessionRequest.get());
+    }
 }
