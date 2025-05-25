@@ -38,7 +38,7 @@ Start Alice (sender):
 If successful, Alice should receive an encrypted message from Bob, which Alice can decrypt to
 ``Session Key accepted and verified Alices identity at: <date-time>``
 
-### Run Needham-Schroeder without attack
+### Run Needham-Schroeder with attack
 
 Start bob (listener):
 ```bash
