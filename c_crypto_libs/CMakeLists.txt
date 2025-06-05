@@ -30,7 +30,15 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/libtom/libtomcrypt.git
   GIT_TAG        d448df1938e8988bcdb0eed6591387e82b26874b)
 
-FetchContent_MakeAvailable(Catch2 fmt libtomcrypt)
+#
+# libhydrogen
+#
+FetchContent_Declare(
+  hydrogen
+  GIT_REPOSITORY https://github.com/jedisct1/libhydrogen.git
+  GIT_TAG        bbca575b62510bfdc6dd927a4bfa7df4a51cb846)
+
+FetchContent_MakeAvailable(Catch2 fmt libtomcrypt hydrogen)
 
 enable_testing()
 
@@ -43,6 +51,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 #
 add_executable(c_crypto_prot
     src/main.cpp
+    src/LibTomWrapper.cpp
     )
     
 # Increase Warnings, treat warnings as errors
@@ -57,7 +66,7 @@ if (CMAKE_BUILD_TYPE STREQUAL "Debug" AND CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_6
     endif()
 endif()
 
-target_link_libraries(c_crypto_prot PRIVATE fmt::fmt libtomcrypt)
+target_link_libraries(c_crypto_prot PRIVATE fmt::fmt libtomcrypt hydrogen)
 
 #
 # Tests

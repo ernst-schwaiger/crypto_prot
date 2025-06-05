@@ -37,3 +37,7 @@ cd build
 cmake ..
 make -sj
 ```
+
+### TODO
+
+* CryptoWrapper for LibHydrogen
