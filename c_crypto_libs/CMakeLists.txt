@@ -22,6 +22,13 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/fmtlib/fmt
   GIT_TAG        11.1.1)
 
+
+#
+# libtommath
+#
+find_package(libtommath REQUIRED)
+include_directories(${libtommath_INCLUDE_DIRS})
+
 #
 # libtomcrypt (requires libtommath being installed upfront!)
 #
@@ -40,6 +47,9 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(Catch2 fmt libtomcrypt hydrogen)
 
+# use libtommath descriptor in libtomcrypt
+target_compile_options(libtomcrypt PRIVATE "-DLTM_DESC")
+
 enable_testing()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -52,6 +62,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_executable(c_crypto_prot
     src/main.cpp
     src/LibTomWrapper.cpp
+    src/UdpSocket.cpp
+    src/SendReceive.cpp
     )
     
 # Increase Warnings, treat warnings as errors
@@ -73,6 +85,9 @@ target_link_libraries(c_crypto_prot PRIVATE fmt::fmt libtomcrypt hydrogen)
 #
 add_executable(c_crypto_prot_test 
     test/c_crypto_prot_test.cpp
+    src/LibTomWrapper.cpp
+    src/SendReceive.cpp
+    src/UdpSocket.cpp
     )
 
 # for coverage: ensure tests are executed in debug mode
@@ -84,7 +99,7 @@ endif()
 target_include_directories(c_crypto_prot_test PRIVATE 
     ${CMAKE_SOURCE_DIR}/src)
 
-target_link_libraries(c_crypto_prot_test PRIVATE Catch2::Catch2WithMain fmt::fmt)
+target_link_libraries(c_crypto_prot_test PRIVATE Catch2::Catch2WithMain fmt::fmt libtomcrypt)
 add_test(NAME c_crypto_prot_test COMMAND c_crypto_prot_test)
 
 # Custom target to run tests and generate coverage report 

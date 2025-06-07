@@ -40,4 +40,6 @@ make -sj
 
 ### TODO
 
+* App: Run in Client or in Server Mode according to command line params.
+* Server: Support multiple clients at runtime
 * CryptoWrapper for LibHydrogen
