@@ -6,10 +6,10 @@ Group 3: Lorenzo Haidinger, Samuel Kominek, Stefan Ohnewith, Ernst Schwaiger
 For building the project, the following dependencies must be installed upfront:
 
 ```bash
-sudo apt install gcc g++ make cmake libtommath-dev
+sudo apt install gcc g++ make cmake
 ```
 
-If libtommath-dev is not available for installation, it can be checked out from github, built and installed manually:
+LibTomCrypt uses libtommath as a dependency. It can be checked out from github, built and (optionally) installed:
 
 ```bash
 git clone https://github.com/libtom/libtommath.git
@@ -17,15 +17,10 @@ mkdir libtommath/build
 cd libtommath/build
 cmake ..
 make -sj
-sudo make install
-# -- Install configuration: "Release"
-# -- Installing: /usr/local/lib/libtommath.a
-# -- Installing: /usr/local/include/libtommath/tommath.h
-# -- Installing: /usr/local/share/man/man3/tommath.3
-# -- Installing: /usr/local/lib/cmake/libtommath/libtommath-config-version.cmake
-# -- Installing: /usr/local/lib/cmake/libtommath/libtommath-config.cmake
-# -- Installing: /usr/local/lib/cmake/libtommath/libtommath-config-release.cmake
 ```
+
+If the `cmake` command in `c_crypto_libs` reports error messages concerning missing `libtommath`, invoke 
+`sudo make install` in the `build` folder of `libtommath` and repeat building `c_crypto_libs`.
 
 ## Build and run
 
