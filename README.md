@@ -29,3 +29,9 @@ Merkle Signatures built ontop of Lamport One-Time Signatures implemented in Java
 Protocol for exchanging symmetric/asymmetric keys, implemented in Java
 
 [needham_schoeder](./needham_schroeder/README.md)
+
+## C Crypto Libraries
+
+Implementation of a custom protocol using LibTomMath and Hydrogen
+
+[c_crypto_libs](./c_crypto_libs/README.md)

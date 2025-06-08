@@ -9,7 +9,7 @@ For building the project, the following dependencies must be installed upfront:
 sudo apt install gcc g++ make cmake libtommath-dev
 ```
 
-As an alternative, libtommath can be checked out from github, built and installed manually:
+If libtommath-dev is not available for installation, it can be checked out from github, built and installed manually:
 
 ```bash
 git clone https://github.com/libtom/libtommath.git
@@ -29,17 +29,34 @@ sudo make install
 
 ## Build and run
 
-To build the Project:
+To build the project for debugging (for release builds, use `-DCMAKE_BUILD_TYPE=Release`):
 ```bash
 cd c_crypto_libs
 mkdir -p build
 cd build
-cmake ..
+cmake -DCMAKE_BUILD_TYPE=Debug ..
 make -sj
+```
+
+Run the unit tests via `./c_crypto_prot_test`.
+
+The binary can be executed in both server and client roles. The server uses LibTomCrypt or Hydrogen
+depending on the requests it receives from the client. For the client `-t` (default) will use
+LibTomCrypt and `-h` will use Hydrogen.
+
+Usage:
+```
+Usage: ./c_crypto_prot [-l <ipaddr>] [-r <ipaddr>] [-s] [-t|-h]<message>
+   -l <ipaddr>        local IPV4 address, default is 127.0.0.1.
+   -r <ipaddr>        remote IPV4 address, default is 127.0.0.1.
+   -s                 assume server role, if left out assume client role
+   [-t|-h]            use LibTomCrypt or Hydrogen, only relevant in client role, default is -t
+   <message>          message to send, only relevant in client role
 ```
 
 ### TODO
 
-* App: Run in Client or in Server Mode according to command line params.
-* Server: Support multiple clients at runtime
-* CryptoWrapper for LibHydrogen
+* Clean up logging messages
+* Test on ARM platform
+* Extract Metrics: Performance for key generation, symmetric encryption, Memory consumption
+* Replace dummy implementations in CryptoWrapper for Hydrogen

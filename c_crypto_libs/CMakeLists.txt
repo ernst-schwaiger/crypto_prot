@@ -22,13 +22,6 @@ FetchContent_Declare(
   GIT_REPOSITORY https://github.com/fmtlib/fmt
   GIT_TAG        11.1.1)
 
-
-#
-# libtommath
-#
-find_package(libtommath REQUIRED)
-include_directories(${libtommath_INCLUDE_DIRS})
-
 #
 # libtomcrypt (requires libtommath being installed upfront!)
 #
@@ -62,8 +55,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_executable(c_crypto_prot
     src/main.cpp
     src/LibTomWrapper.cpp
+    src/HydrogenWrapper.cpp
     src/UdpSocket.cpp
     src/SendReceive.cpp
+    src/ConfigParser.cpp
     )
     
 # Increase Warnings, treat warnings as errors

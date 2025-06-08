@@ -1,24 +1,24 @@
 #pragma once
 #include <memory>
+#include <hydrogen.h>
 
-#include <tomcrypt.h>
 #include "ICryptoWrapper.h"
 #include "Common.h"
 
 namespace ccl {
 
-class LibTomWrapper : public ICryptoWrapper
+class HydrogenWrapper : public ICryptoWrapper
 {
 public:
     static void init(); // call this before any other method!
     static std::unique_ptr<ICryptoWrapper> createInstance()
     {
-        return std::unique_ptr<LibTomWrapper>(new LibTomWrapper());        
+        return std::unique_ptr<HydrogenWrapper>(new HydrogenWrapper());        
     }
 
     virtual uint8_t getId() const
     {
-        return WRAPPER_ID_LIBTOMCRYPT; // ...and the LibHydrogenWrapper shall return 1;
+        return WRAPPER_ID_LIBHYDROGEN; // ...and the LibHydrogenWrapper shall return 1;
     }
 
     virtual payload_t hash(std::string const &in) const override;
@@ -33,17 +33,12 @@ public:
     // decrypts from IV, symmetric key and ciphertext
     virtual std::string decrypt(std::pair<payload_t, payload_t> const &ivAndCipherText, payload_t const &symmKey) const;    
 
-    virtual ~LibTomWrapper()
+    virtual ~HydrogenWrapper()
     {
-        ecc_free(&m_ecdhLocalKey);
-        ecc_free(&m_ecdhRemoteKey);
+        // Free allocated resources here
     };
 private:
-    LibTomWrapper(); // prevent direct instantiation 
-
-    static int m_wprng;
-    ecc_key m_ecdhLocalKey;
-    ecc_key m_ecdhRemoteKey;
+    HydrogenWrapper(); // prevent direct instantiation 
 };
 
 } // namespace ccl

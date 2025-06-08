@@ -1,11 +1,8 @@
 #pragma once
 
-#include <vector>
 #include <string>
-#include <cstdint>
-#include <utility>
 
-#include "CommonTypes.h"
+#include "Common.h"
 
 namespace ccl {
 

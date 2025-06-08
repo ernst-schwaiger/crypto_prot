@@ -5,37 +5,72 @@
 #include <stdio.h>
 #include <hydrogen.h>
 
+#include "ConfigParser.h"
 #include "LibTomWrapper.h"
+#include "HydrogenWrapper.h"
 #include "SendReceive.h"
 
 using namespace std;
 using namespace ccl;
 
-void printHash(payload_t const &in)
+static uint8_t printChar(uint8_t in)
 {
+    return ((in >= 32) && (in <= 126)) ? in : '.';
+}
+
+static void printPayload(payload_t const &in, string const &header)
+{
+    cout << header << "\n";
+    std::stringstream ss;
     for (size_t idx = 0; idx < in.size(); idx++)
     {
         int val = in[idx];
-        cout << hex << setw(2) << setfill('0') << static_cast<int>(val);
+        ss << printChar(val);
+        cout << hex << setw(2) << setfill('0') << static_cast<int>(val) << " ";
+        if (idx % 16 == 7)
+        {
+            cout << " ";
+            ss << " ";
+        }
+        if (idx % 16 == 15)
+        {
+            cout << "  " << ss.str() << "\n";
+            ss.str("");
+            ss.clear();
+        }
     }
-    cout << "\n";
+
+    // Pad the last line so the printable chars are aligned
+    uint8_t padLen = ((16 - (in.size() % 16)) * 3) + 3;
+    if (((in.size() % 16) >=8))
+    {
+        padLen--;
+    }
+    string padding(padLen, ' ');
+    
+    cout << padding << ss.str() << "\n";
 }
 
-void client(ICryptoWrapper *pCW, SendReceive *pSR, string messageToSend)
+static void client(ICryptoWrapper *pCW, SendReceive *pSR, string messageToSend)
 {
     payload_t ownDHPubKey = pCW->setupDH();
-    pSR->sendDHRequest(pCW->getId(), ownDHPubKey);
+    payload_t dhRequest = pSR->createDHRequest(pCW->getId(), ownDHPubKey);
+    printPayload(dhRequest, "Send DH request message:");
+    pSR->send(dhRequest);
 
-    payload_t remoteDHPubKey = pSR->parseDHResponse(pCW->getId());
+    optional<payload_t> optRxPayload = pSR->receive(NO_TIMEOUT);
+    printPayload(dhRequest, "Received DH response message:");
+    payload_t remoteDHPubKey = pSR->parseDHResponse(pCW->getId(), optRxPayload);
     payload_t symKey = pCW->finishDH(remoteDHPubKey);
 
     payload_t digest = pCW->hash(messageToSend);
     pair<payload_t, payload_t> ivAndCiphertext = pCW->encrypt(messageToSend, symKey);
-    pSR->sendCipherTextAndHash(pCW->getId(), ivAndCiphertext.first, ivAndCiphertext.second, digest);
+    payload_t cipherTextAndHash = pSR->createCipherTextAndHash(pCW->getId(), ivAndCiphertext.first, ivAndCiphertext.second, digest);
+    printPayload(cipherTextAndHash, "Send ciphertext and hash:");
+    pSR->send(cipherTextAndHash);
 }
 
-// FIXME: Add wrappers for both LibTomCrypt and LibHydrogen
-void server(ICryptoWrapper *pCW, SendReceive *pSR)
+static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
 {
     optional<payload_t> localDHPubKey;
     optional<payload_t> remoteDHPubKey;
@@ -44,20 +79,36 @@ void server(ICryptoWrapper *pCW, SendReceive *pSR)
     {
         optional<payload_t> optRxPayload = pSR->receive(NO_TIMEOUT);
 
-        if (optRxPayload.has_value() && optRxPayload->size() >= 1)
+        if (optRxPayload.has_value() && optRxPayload->size() >= 2)
         {
+            // Second byte in received payload indicates the wrapper we have to use
+            uint8_t cwIdx = optRxPayload->at(1);
+            if (cwIdx >= 2)
+            {
+                runtime_error("Unknown handler field encountered in message.");
+            }
+
+            ICryptoWrapper *pCW = CWs[cwIdx].get();
+            
+            // First byte indicates the type of message we received
             switch(optRxPayload->at(0))
             {
                 case MSG_ID_DH_REQUEST:
-                    remoteDHPubKey = pSR->parseDHRequest(pCW->getId());
+                {
+                    printPayload(*optRxPayload, "Received DH request message:");
+                    remoteDHPubKey = pSR->parseDHRequest(pCW->getId(), optRxPayload);
                     localDHPubKey = pCW->setupDH();
-                    pSR->sendDHResponse(pCW->getId(), *localDHPubKey);
+                    payload_t dhResponse = pSR->createDHResponse(pCW->getId(), *localDHPubKey);
+                    printPayload(*optRxPayload, "Send DH response message:");
+                    pSR->send(dhResponse);
                     break;
+                }
                 case MSG_ID_CIPHERTEXT_HASH:
                     if (localDHPubKey.has_value() && remoteDHPubKey.has_value())
                     {
+                        printPayload(*optRxPayload, "Received ciphertext and hash:");
                         payload_t symKey = pCW->finishDH(*remoteDHPubKey);
-                        pair<pair<payload_t, payload_t>, payload_t> ivCipherTextHash = pSR->parseCipherTextAndHash(pCW->getId());
+                        pair<pair<payload_t, payload_t>, payload_t> ivCipherTextHash = pSR->parseCipherTextAndHash(pCW->getId(), optRxPayload);
                         std::string plainText = pCW->decrypt(ivCipherTextHash.first, symKey);
                         payload_t hash = pCW->hash(plainText);
 
@@ -81,36 +132,51 @@ void server(ICryptoWrapper *pCW, SendReceive *pSR)
 
 int main(int argc, char *argv[])
 {
+    int ret = 0;
     try
     {
-        // FIXME: move this to HydroGenWrapper class
-        if (hydro_init() != 0)
+        std::optional<config_t> optCfg = getConfigFromOptions(argc, argv);
+
+        if (optCfg.has_value())
         {
-            throw runtime_error("Could not init libhydrogen.");
+            // Set up Libraries, wrappers for accessing them
+            LibTomWrapper::init();
+            HydrogenWrapper::init();
+            std::unique_ptr<ICryptoWrapper> CWs[2];
+            CWs[WRAPPER_ID_LIBTOMCRYPT] = LibTomWrapper::createInstance();
+            CWs[WRAPPER_ID_LIBHYDROGEN] = HydrogenWrapper::createInstance();
+
+            // Set up Udp Sockets for sending/receiving
+            uint16_t localPort  = optCfg->isServer ? SERVER_PORT : CLIENT_PORT;
+            uint16_t remotePort = optCfg->isServer ? CLIENT_PORT : SERVER_PORT;
+            SendReceive sr(optCfg->local_ipaddr, localPort, optCfg->remote_ipaddr, remotePort);
+
+            if (optCfg->isServer)
+            {
+                server(CWs, &sr);
+            }
+            else
+            {
+                string message = optCfg->freeParams.empty() ? 
+                    "All your base are belong to us." : 
+                    optCfg->freeParams.at(0);
+
+                uint8_t wrapperIdx = optCfg->useLibTom ? WRAPPER_ID_LIBTOMCRYPT : WRAPPER_ID_LIBHYDROGEN;
+                ICryptoWrapper *pCW = CWs[wrapperIdx].get();
+                client(pCW, &sr, message);
+            }
+        }
+        else
+        {
+            printUsage(argv[0]);
+            ret = 1;
         }
 
-        std::string in = "Hello, World";
-
-        if (argc == 2)
-        {
-            in = argv[1];
-        }
-        LibTomWrapper::init();
-        auto ltw = LibTomWrapper::createInstance();
-        payload_t hash = ltw->hash(in);
-        printHash(hash);
-
-        payload_t rnd = ltw->secureRnd(16);
-        printHash(rnd);
-
-        payload_t dhPublic = ltw->setupDH();
-        payload_t secret = ltw->finishDH(dhPublic);
-        
     }
     catch(const runtime_error& e)
     {
         std::cerr << e.what() << '\n';
     }
 
-    return 0;
+    return ret;
 }

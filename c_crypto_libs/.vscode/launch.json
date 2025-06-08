@@ -12,7 +12,7 @@
             "type": "cppdbg",
             "request": "launch",
             "program": "${workspaceFolder}/build/c_crypto_prot",
-            "args": ["this is a test"],
+            "args": ["-s"],
             "stopAtEntry": true,
             "cwd": "${workspaceFolder}",
             "environment": [],
