@@ -32,8 +32,8 @@ public:
 
 private:
 
-    payload_t parseDHRequestResponse(uint8_t msgId, uint8_t wrapperId, std::optional<payload_t> const &optDHReqResponse) const;
-    payload_t createDHRequestResponse(uint8_t msgId, uint8_t wrapperId, payload_t const &remotePayload) const;
+    payload_t parseDHMessage(uint8_t msgId, uint8_t wrapperId, std::optional<payload_t> const &optDHReqResponse) const;
+    payload_t createMessage(uint8_t msgId, uint8_t wrapperId, payload_t const &remotePayload) const;
 
     std::unique_ptr<UdpRxSocket> m_rxSocket;
     std::unique_ptr<UdpTxSocket> m_txSocket;

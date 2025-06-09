@@ -5,8 +5,6 @@
 #include "HydrogenWrapper.h"
 #include "SendReceive.h"
 
-#include <hydrogen.h> // FIXME: Remove
-
 using namespace std;
 using namespace ccl;
 
@@ -121,50 +119,4 @@ TEST_CASE( "Ensure that Key Exchange is working properly in HydrogenWrapper " )
     payload_t sharedSymmKey2 = ltw2->finishDH(payload3, ICryptoWrapper::Role::SERVER);
 
     REQUIRE(sharedSymmKey1 == sharedSymmKey2);
-}
-
-
-
-TEST_CASE( "Ensure that HydrogenKey Exchange is working properly" )
-{
-    uint8_t PSK[hydro_kx_PSKBYTES] = 
-    {
-        0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 
-        0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 
-        0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 
-        0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 
-    };
-
-    hydro_kx_keypair clientKeyPair;
-    hydro_kx_keypair serverKeyPair;
-
-    hydro_kx_state clientKeyExchangeState;
-    hydro_kx_state serverKeyExchangeState;
-
-    hydro_kx_session_keypair clientSessionKeyPair;
-    hydro_kx_session_keypair serverSessionKeyPair;
-
-    int status = hydro_init();
-
-    REQUIRE(status == 0);
-    hydro_kx_keygen(&clientKeyPair);
-    hydro_kx_keygen(&serverKeyPair);
-
-    // 1st message from client to server
-    payload_t packet1ClientServer(hydro_kx_XX_PACKET1BYTES);
-    hydro_kx_xx_1(&clientKeyExchangeState, packet1ClientServer.data(), PSK);
-
-    // 2nd message from server to client
-    payload_t packet2ServerClient(hydro_kx_XX_PACKET2BYTES);
-    hydro_kx_xx_2(&serverKeyExchangeState, packet2ServerClient.data(), packet1ClientServer.data(), PSK, &serverKeyPair);
-
-    // 3rd message from client to server
-    payload_t packet3ClientServer(hydro_kx_XX_PACKET3BYTES);
-    hydro_kx_xx_3(&clientKeyExchangeState, &clientSessionKeyPair, packet3ClientServer.data(), nullptr, packet2ServerClient.data(), PSK, &clientKeyPair);
-
-    // Process 3rd message on server side
-    hydro_kx_xx_4(&serverKeyExchangeState, &serverSessionKeyPair, nullptr, packet3ClientServer.data(), PSK);
-
-    REQUIRE(memcmp(&clientSessionKeyPair.rx, &serverSessionKeyPair.tx, hydro_kx_SESSIONKEYBYTES) == 0);
-    REQUIRE(memcmp(&clientSessionKeyPair.tx, &serverSessionKeyPair.rx, hydro_kx_SESSIONKEYBYTES) == 0);
 }

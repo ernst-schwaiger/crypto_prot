@@ -40,6 +40,19 @@ public:
         // Free allocated resources here
     };
 private:
+
+    static constexpr char const *CONTEXT = "krypto01";
+
+    // PSK really should be hidden. In our case, it is private :-)
+    static constexpr uint8_t PSK[hydro_kx_PSKBYTES] =
+    {
+        0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 
+        0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 
+        0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 
+        0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe
+    };
+
+
     HydrogenWrapper(); // prevent direct instantiation
     hydro_kx_keypair keyExKeyPair;
     hydro_kx_state keyExState;

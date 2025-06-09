@@ -75,17 +75,17 @@ std::optional<payload_t> SendReceive::receive(uint16_t timeoutMS) const
 
 payload_t SendReceive::createDHRequest(uint8_t wrapperId, payload_t const &remotePayload) const
 {
-    return createDHRequestResponse(MSG_ID_DH_REQUEST, wrapperId, remotePayload);
+    return createMessage(MSG_ID_DH_REQUEST, wrapperId, remotePayload);
 }
 
 payload_t SendReceive::createDHResponse(uint8_t wrapperId, payload_t const &remotePayload) const
 {
-    return createDHRequestResponse(MSG_ID_DH_RESPONSE, wrapperId, remotePayload);
+    return createMessage(MSG_ID_DH_RESPONSE, wrapperId, remotePayload);
 }
 
 payload_t SendReceive::createDHUpdate(uint8_t wrapperId, payload_t const &remotePayload) const
 {
-    return createDHRequestResponse(MSG_ID_DH_UPDATE, wrapperId, remotePayload);
+    return createMessage(MSG_ID_DH_UPDATE, wrapperId, remotePayload);
 }
 
 payload_t SendReceive::createCipherTextAndHash(uint8_t wrapperId, payload_t const &IV, payload_t const &ciphertext, payload_t const &hash) const
@@ -137,20 +137,20 @@ pair<pair<payload_t, payload_t>, payload_t> SendReceive::parseCipherTextAndHash(
 
 payload_t SendReceive::parseDHRequest(uint8_t wrapperId, optional<payload_t> const &optDHRequest) const
 {
-    return parseDHRequestResponse(MSG_ID_DH_REQUEST, wrapperId, optDHRequest);
+    return parseDHMessage(MSG_ID_DH_REQUEST, wrapperId, optDHRequest);
 }
 
 payload_t SendReceive::parseDHResponse(uint8_t wrapperId, optional<payload_t> const &optDHResponse) const
 {
-    return parseDHRequestResponse(MSG_ID_DH_RESPONSE, wrapperId, optDHResponse);
+    return parseDHMessage(MSG_ID_DH_RESPONSE, wrapperId, optDHResponse);
 }
 
 payload_t SendReceive::parseDHUpdate(uint8_t wrapperId, std::optional<payload_t> const &optDHUpdate) const
 {
-    return parseDHRequestResponse(MSG_ID_DH_UPDATE, wrapperId, optDHUpdate);
+    return parseDHMessage(MSG_ID_DH_UPDATE, wrapperId, optDHUpdate);
 }
 
-payload_t SendReceive::createDHRequestResponse(uint8_t msgId, uint8_t wrapperId, payload_t const &remotePayload) const
+payload_t SendReceive::createMessage(uint8_t msgId, uint8_t wrapperId, payload_t const &remotePayload) const
 {
     payload_t payload;
     payload.reserve(2 + remotePayload.size());
@@ -160,7 +160,7 @@ payload_t SendReceive::createDHRequestResponse(uint8_t msgId, uint8_t wrapperId,
     return payload;
 }
 
-payload_t SendReceive::parseDHRequestResponse(uint8_t msgId, uint8_t wrapperId, optional<payload_t> const &optDHReqResponse) const
+payload_t SendReceive::parseDHMessage(uint8_t msgId, uint8_t wrapperId, optional<payload_t> const &optDHReqResponse) const
 {
     // Validate first two bytes: Message Id and Wrapper Id
     if (optDHReqResponse->size() <= 2)

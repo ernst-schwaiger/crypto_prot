@@ -53,10 +53,6 @@ Usage: ./c_crypto_prot [-l <ipaddr>] [-r <ipaddr>] [-s] [-t|-h]<message>
 
 * Clean up logging messages
 * Test on ARM platform
-* Fix const static members in HydrogenWrapper
-* Fix state variable names in server implementation
 * Extract Metrics: Performance for key generation, symmetric encryption, Memory consumption
 * Fix reception of optional rx payload when rx is blocking anyways.
 * Fix transmission of zero length data in LibTomWrapper.
-* Fix parse/generate DH internal methods
-* remove obsolete Hydrogen Key Exchange test

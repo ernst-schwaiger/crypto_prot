@@ -53,50 +53,57 @@ static void printPayload(payload_t const &in, string const &header)
 
 static void client(ICryptoWrapper *pCW, SendReceive *pSR, string messageToSend)
 {
-    payload_t empty;
     ICryptoWrapper::Role const role = ICryptoWrapper::Role::CLIENT;
-    payload_t clientDHRequestData = pCW->setupDH(empty, role);
-    payload_t dhRequest = pSR->createDHRequest(pCW->getId(), clientDHRequestData);
-    printPayload(dhRequest, "Send DH request message:");
-    pSR->send(dhRequest);
 
-    optional<payload_t> optdhResponse = pSR->receive(NO_TIMEOUT);
-    printPayload(*optdhResponse, "Received DH response message:");
-    payload_t dhResponseData = pSR->parseDHResponse(pCW->getId(), optdhResponse);
+    // Initiate Diffie-Hellman Key Exchange, send request to Server
+    payload_t clientDHRequestData = pCW->setupDH(payload_t(), role);
+    payload_t dhRequestMsg = pSR->createDHRequest(pCW->getId(), clientDHRequestData);
+    printPayload(dhRequestMsg, "Send DH request message:");
+    pSR->send(dhRequestMsg);
 
+    // Process Diffie-Hellman response Message from Server
+    optional<payload_t> optdhResponseMsg = pSR->receive(NO_TIMEOUT);
+    printPayload(*optdhResponseMsg, "Received DH response message:");
+    payload_t dhResponseData = pSR->parseDHResponse(pCW->getId(), optdhResponseMsg);
+
+    // Optional: Send Diffie-Hellman Update Message back to Server
     payload_t dhUpdateData = pCW->updateDH(dhResponseData, role);
     if (!dhUpdateData.empty())
     {
-        // For the DH, client has to send a DH update to server
-        // FIXME: update finishData
-        payload_t dhUpdate = pSR->createDHUpdate(pCW->getId(), dhUpdateData);
-        printPayload(dhUpdate, "Send DH update message:");
-        pSR->send(dhUpdate);
+        payload_t dhUpdateMsg = pSR->createDHUpdate(pCW->getId(), dhUpdateData);
+        printPayload(dhUpdateMsg, "Send DH update message:");
+        pSR->send(dhUpdateMsg);
     }
 
+    // Derive the symmetric key out of the shared secret
     payload_t symKey = pCW->finishDH(dhResponseData, role);
 
+    // Calculate a hash on the plain text message
     payload_t digest = pCW->hash(messageToSend);
+
+    // Encrypt plain text message
     pair<payload_t, payload_t> ivAndCiphertext = pCW->encrypt(messageToSend, symKey);
-    payload_t cipherTextAndHash = pSR->createCipherTextAndHash(pCW->getId(), ivAndCiphertext.first, ivAndCiphertext.second, digest);
-    printPayload(cipherTextAndHash, "Send ciphertext and hash:");
-    pSR->send(cipherTextAndHash);
+
+    // Send ciphertext, hash of the message is appended in plain text
+    payload_t cipherTextAndHashMsg = pSR->createCipherTextAndHash(pCW->getId(), ivAndCiphertext.first, ivAndCiphertext.second, digest);
+    printPayload(cipherTextAndHashMsg, "Send ciphertext and hash:");
+    pSR->send(cipherTextAndHashMsg);
 }
 
 static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
 {
     ICryptoWrapper::Role const role = ICryptoWrapper::Role::SERVER;
-    optional<payload_t> localDHPubKey;
-    optional<payload_t> remoteDHPubKey;
+    optional<payload_t> localDHData;
+    optional<payload_t> remoteDHData;
 
     for(;;)
     {
-        optional<payload_t> optRxPayload = pSR->receive(NO_TIMEOUT);
+        optional<payload_t> optRxMsg = pSR->receive(NO_TIMEOUT);
 
-        if (optRxPayload.has_value() && optRxPayload->size() >= 2)
+        if (optRxMsg.has_value() && optRxMsg->size() >= 2)
         {
             // Second byte in received payload indicates the wrapper we have to use
-            uint8_t cwIdx = optRxPayload->at(1);
+            uint8_t cwIdx = optRxMsg->at(1);
             if (cwIdx >= 2)
             {
                 runtime_error("Unknown handler field encountered in message.");
@@ -105,31 +112,46 @@ static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
             ICryptoWrapper *pCW = CWs[cwIdx].get();
             
             // First byte indicates the type of message we received
-            switch(optRxPayload->at(0))
+            switch(optRxMsg->at(0))
             {
+                // Diffie-Hellman request arrived from client
                 case MSG_ID_DH_REQUEST:
                 {
-                    printPayload(*optRxPayload, "Received DH request message:");
-                    remoteDHPubKey = pSR->parseDHRequest(pCW->getId(), optRxPayload);
-                    localDHPubKey = pCW->setupDH(*remoteDHPubKey, role);
-                    payload_t dhResponse = pSR->createDHResponse(pCW->getId(), *localDHPubKey);
-                    printPayload(dhResponse, "Send DH response message:");
-                    pSR->send(dhResponse);
+                    printPayload(*optRxMsg, "Received DH request message:");
+                    // Setup internal state using DH data from client
+                    remoteDHData = pSR->parseDHRequest(pCW->getId(), optRxMsg);
+                    localDHData = pCW->setupDH(*remoteDHData, role);
+
+                    // Create DH response message, send back to client
+                    payload_t dhResponseMsg = pSR->createDHResponse(pCW->getId(), *localDHData);
+                    printPayload(dhResponseMsg, "Send DH response message:");
+                    pSR->send(dhResponseMsg);
                     break;
                 }
+
+                // Otional: DH Update message from client
                 case MSG_ID_DH_UPDATE:
                 {
-                    printPayload(*optRxPayload, "Received DH update message:");
-                    remoteDHPubKey = pSR->parseDHUpdate(pCW->getId(), optRxPayload);
+                    // Parse update message data, store it in remoteDHData
+                    printPayload(*optRxMsg, "Received DH update message:");
+                    remoteDHData = pSR->parseDHUpdate(pCW->getId(), optRxMsg);
                     break;
                 }
+
+                // On reception of encrypted message: Derive symmetric key, decrypt ciphertext,
+                // compare hash of cleartext message with received hash
                 case MSG_ID_CIPHERTEXT_HASH:
-                    if (localDHPubKey.has_value() && remoteDHPubKey.has_value())
+                    if (localDHData.has_value() && remoteDHData.has_value())
                     {
-                        printPayload(*optRxPayload, "Received ciphertext and hash:");
-                        payload_t symKey = pCW->finishDH(*remoteDHPubKey, role);
-                        pair<pair<payload_t, payload_t>, payload_t> ivCipherTextHash = pSR->parseCipherTextAndHash(pCW->getId(), optRxPayload);
+                        printPayload(*optRxMsg, "Received ciphertext and hash:");
+                        // derive symmetric key
+                        payload_t symKey = pCW->finishDH(*remoteDHData, role);
+                        // parse IV, ciphertext, hash
+                        pair<pair<payload_t, payload_t>, payload_t> ivCipherTextHash = pSR->parseCipherTextAndHash(pCW->getId(), optRxMsg);
+
+                        // decrypt ciphertext
                         std::string plainText = pCW->decrypt(ivCipherTextHash.first, symKey);
+                        // calculate hash on plain text
                         payload_t hash = pCW->hash(plainText);
 
                         if (hash == ivCipherTextHash.second)
@@ -137,9 +159,14 @@ static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
                             // Hash is correct
                             cout << "Server received msg: \"" << plainText << "\", successfully compared hash.\n";
                         }
+                        else
+                        {
+                            cout << "Received hash differs from calculated on. Am I being hacked?\n";
+                        }
 
-                        localDHPubKey.reset();
-                        remoteDHPubKey.reset();
+                        // Reset state data for subsequent client calls
+                        localDHData.reset();
+                        remoteDHData.reset();
                     }
                     break;
                 default:
