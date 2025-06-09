@@ -13,7 +13,8 @@ constexpr uint8_t WRAPPER_ID_LIBHYDROGEN = 0x01;
 
 constexpr uint8_t MSG_ID_DH_REQUEST = 0x01;
 constexpr uint8_t MSG_ID_DH_RESPONSE = 0x02;
-constexpr uint8_t MSG_ID_CIPHERTEXT_HASH = 0x03;
+constexpr uint8_t MSG_ID_DH_UPDATE = 0x03; // optional third message from client to server
+constexpr uint8_t MSG_ID_CIPHERTEXT_HASH = 0x04;
 
 constexpr uint16_t SERVER_PORT = 4200;
 constexpr uint16_t CLIENT_PORT = 4201;

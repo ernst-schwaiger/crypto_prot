@@ -81,9 +81,16 @@ payload_t LibTomWrapper::secureRnd(size_t lenBytes) const
     return ret;
 }
 
-payload_t LibTomWrapper::setupDH()
+payload_t LibTomWrapper::setupDH(payload_t const &remotePayload, ICryptoWrapper::Role role)
 {
     prng_state prngState;
+
+    if (role != ICryptoWrapper::Role::CLIENT) {} // symmetric dh, role not needed, silence the compiler
+
+    if (!remotePayload.empty())
+    {
+        // we are in server mode, we can ignore the data here
+    }
 
     // 128 bit randomness for the key pair
     if (rng_make_prng(128, m_wprng, &prngState, nullptr) != CRYPT_OK)
@@ -110,9 +117,22 @@ payload_t LibTomWrapper::setupDH()
     return ret;
 }
 
-payload_t LibTomWrapper::finishDH(payload_t &remoteKey)
+payload_t LibTomWrapper::updateDH(payload_t const &remotePayload, ICryptoWrapper::Role role)
 {
-    if (ecc_import(remoteKey.data(), remoteKey.size(), &m_ecdhRemoteKey) != CRYPT_OK)
+    // Not used in LibTomWrapper
+    payload_t ret;
+    if (role != ICryptoWrapper::Role::CLIENT) {} // symmetric dh, role not needed, silence the compiler
+    if (remotePayload == remotePayload) {} // to silence the compiler
+    return ret;
+}
+
+
+payload_t LibTomWrapper::finishDH(payload_t const &remotePayload, ICryptoWrapper::Role role)
+{
+    if (role != ICryptoWrapper::Role::CLIENT) {} // symmetric dh, role not needed, silence the compiler
+
+    // remotePayload == remote public key
+    if (ecc_import(remotePayload.data(), remotePayload.size(), &m_ecdhRemoteKey) != CRYPT_OK)
     {
         throw runtime_error("Could not import remote ECDH public key");
     }

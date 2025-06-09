@@ -73,15 +73,19 @@ std::optional<payload_t> SendReceive::receive(uint16_t timeoutMS) const
     return ret;
 }
 
-
-payload_t SendReceive::createDHRequest(uint8_t wrapperId, payload_t const &pubKey) const
+payload_t SendReceive::createDHRequest(uint8_t wrapperId, payload_t const &remotePayload) const
 {
-    return createDHRequestResponse(MSG_ID_DH_REQUEST, wrapperId, pubKey);
+    return createDHRequestResponse(MSG_ID_DH_REQUEST, wrapperId, remotePayload);
 }
 
-payload_t SendReceive::createDHResponse(uint8_t wrapperId, payload_t const &pubKey) const
+payload_t SendReceive::createDHResponse(uint8_t wrapperId, payload_t const &remotePayload) const
 {
-    return createDHRequestResponse(MSG_ID_DH_RESPONSE, wrapperId, pubKey);
+    return createDHRequestResponse(MSG_ID_DH_RESPONSE, wrapperId, remotePayload);
+}
+
+payload_t SendReceive::createDHUpdate(uint8_t wrapperId, payload_t const &remotePayload) const
+{
+    return createDHRequestResponse(MSG_ID_DH_UPDATE, wrapperId, remotePayload);
 }
 
 payload_t SendReceive::createCipherTextAndHash(uint8_t wrapperId, payload_t const &IV, payload_t const &ciphertext, payload_t const &hash) const
@@ -141,13 +145,18 @@ payload_t SendReceive::parseDHResponse(uint8_t wrapperId, optional<payload_t> co
     return parseDHRequestResponse(MSG_ID_DH_RESPONSE, wrapperId, optDHResponse);
 }
 
-payload_t SendReceive::createDHRequestResponse(uint8_t msgId, uint8_t wrapperId, payload_t const &pubKey) const
+payload_t SendReceive::parseDHUpdate(uint8_t wrapperId, std::optional<payload_t> const &optDHUpdate) const
+{
+    return parseDHRequestResponse(MSG_ID_DH_UPDATE, wrapperId, optDHUpdate);
+}
+
+payload_t SendReceive::createDHRequestResponse(uint8_t msgId, uint8_t wrapperId, payload_t const &remotePayload) const
 {
     payload_t payload;
-    payload.reserve(2 + pubKey.size());
+    payload.reserve(2 + remotePayload.size());
     payload.emplace_back(msgId);
     payload.emplace_back(wrapperId);
-    payload.insert(end(payload), begin(pubKey), end(pubKey));
+    payload.insert(end(payload), begin(remotePayload), end(remotePayload));
     return payload;
 }
 

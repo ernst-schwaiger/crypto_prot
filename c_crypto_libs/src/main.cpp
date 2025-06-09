@@ -53,15 +53,28 @@ static void printPayload(payload_t const &in, string const &header)
 
 static void client(ICryptoWrapper *pCW, SendReceive *pSR, string messageToSend)
 {
-    payload_t ownDHPubKey = pCW->setupDH();
-    payload_t dhRequest = pSR->createDHRequest(pCW->getId(), ownDHPubKey);
+    payload_t empty;
+    ICryptoWrapper::Role const role = ICryptoWrapper::Role::CLIENT;
+    payload_t clientDHRequestData = pCW->setupDH(empty, role);
+    payload_t dhRequest = pSR->createDHRequest(pCW->getId(), clientDHRequestData);
     printPayload(dhRequest, "Send DH request message:");
     pSR->send(dhRequest);
 
-    optional<payload_t> optRxPayload = pSR->receive(NO_TIMEOUT);
-    printPayload(dhRequest, "Received DH response message:");
-    payload_t remoteDHPubKey = pSR->parseDHResponse(pCW->getId(), optRxPayload);
-    payload_t symKey = pCW->finishDH(remoteDHPubKey);
+    optional<payload_t> optdhResponse = pSR->receive(NO_TIMEOUT);
+    printPayload(*optdhResponse, "Received DH response message:");
+    payload_t dhResponseData = pSR->parseDHResponse(pCW->getId(), optdhResponse);
+
+    payload_t dhUpdateData = pCW->updateDH(dhResponseData, role);
+    if (!dhUpdateData.empty())
+    {
+        // For the DH, client has to send a DH update to server
+        // FIXME: update finishData
+        payload_t dhUpdate = pSR->createDHUpdate(pCW->getId(), dhUpdateData);
+        printPayload(dhUpdate, "Send DH update message:");
+        pSR->send(dhUpdate);
+    }
+
+    payload_t symKey = pCW->finishDH(dhResponseData, role);
 
     payload_t digest = pCW->hash(messageToSend);
     pair<payload_t, payload_t> ivAndCiphertext = pCW->encrypt(messageToSend, symKey);
@@ -72,6 +85,7 @@ static void client(ICryptoWrapper *pCW, SendReceive *pSR, string messageToSend)
 
 static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
 {
+    ICryptoWrapper::Role const role = ICryptoWrapper::Role::SERVER;
     optional<payload_t> localDHPubKey;
     optional<payload_t> remoteDHPubKey;
 
@@ -97,17 +111,23 @@ static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
                 {
                     printPayload(*optRxPayload, "Received DH request message:");
                     remoteDHPubKey = pSR->parseDHRequest(pCW->getId(), optRxPayload);
-                    localDHPubKey = pCW->setupDH();
+                    localDHPubKey = pCW->setupDH(*remoteDHPubKey, role);
                     payload_t dhResponse = pSR->createDHResponse(pCW->getId(), *localDHPubKey);
-                    printPayload(*optRxPayload, "Send DH response message:");
+                    printPayload(dhResponse, "Send DH response message:");
                     pSR->send(dhResponse);
+                    break;
+                }
+                case MSG_ID_DH_UPDATE:
+                {
+                    printPayload(*optRxPayload, "Received DH update message:");
+                    remoteDHPubKey = pSR->parseDHUpdate(pCW->getId(), optRxPayload);
                     break;
                 }
                 case MSG_ID_CIPHERTEXT_HASH:
                     if (localDHPubKey.has_value() && remoteDHPubKey.has_value())
                     {
                         printPayload(*optRxPayload, "Received ciphertext and hash:");
-                        payload_t symKey = pCW->finishDH(*remoteDHPubKey);
+                        payload_t symKey = pCW->finishDH(*remoteDHPubKey, role);
                         pair<pair<payload_t, payload_t>, payload_t> ivCipherTextHash = pSR->parseCipherTextAndHash(pCW->getId(), optRxPayload);
                         std::string plainText = pCW->decrypt(ivCipherTextHash.first, symKey);
                         payload_t hash = pCW->hash(plainText);

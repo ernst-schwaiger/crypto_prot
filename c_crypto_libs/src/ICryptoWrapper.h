@@ -9,6 +9,12 @@ namespace ccl {
 class ICryptoWrapper
 {
 public:
+    enum class Role
+    {
+        CLIENT,
+        SERVER
+    };
+
     // Identifies the wrapper
     virtual uint8_t getId() const = 0;
 
@@ -19,10 +25,14 @@ public:
     virtual payload_t secureRnd(size_t lenBytes) const = 0;
 
     // sets up a DH Key Exchange, returns a public key to transmit to the peer
-    virtual payload_t setupDH() = 0;
+    // if remote payload is empty: nothing to process
+    virtual payload_t setupDH(payload_t const &remotePayload, Role const role) = 0;
+
+    // client-only, generate DH update to server. 
+    virtual payload_t updateDH(payload_t const &remotePayload, Role const role) = 0;
 
     // finalizes the DH Key Exchange, returning a shared secret
-    virtual payload_t finishDH(payload_t &remote_key) = 0;
+    virtual payload_t finishDH(payload_t const &remotePayload, Role const role) = 0;
 
     // generates IV, encrypts and returns IV and ciphertext
     virtual std::pair<payload_t, payload_t> encrypt(std::string const &plainText, payload_t const &symmKey) const = 0;

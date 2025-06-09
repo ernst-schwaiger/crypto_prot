@@ -24,8 +24,9 @@ public:
     virtual payload_t hash(std::string const &in) const override;
     virtual payload_t secureRnd(size_t lenBytes) const override;
     
-    virtual payload_t setupDH() override;
-    virtual payload_t finishDH(payload_t &remote_key) override;
+    virtual payload_t setupDH(payload_t const &remotePayload, ICryptoWrapper::Role role) override;
+    virtual payload_t updateDH(payload_t const &remotePayload, ICryptoWrapper::Role role) override;
+    virtual payload_t finishDH(payload_t const &remotePayload, ICryptoWrapper::Role role) override;
 
     // generates IV, encrypts using the symmetric key and returns IV and ciphertext
     virtual std::pair<payload_t, payload_t> encrypt(std::string const &plainText, payload_t const &symmKey) const override;

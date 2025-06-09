@@ -2,9 +2,17 @@
 
 #include "HydrogenWrapper.h"
 
-//#define CONTEXT "krypto01"
-static constexpr char const * CONTEXT = "krypto01";
-	
+static constexpr char const *CONTEXT = "krypto01";
+
+static constexpr uint8_t PSK[hydro_kx_PSKBYTES] = 
+{
+    0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 
+    0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 
+    0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 
+    0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 0xaf, 0xfe, 
+};
+
+
 using namespace std;
 using namespace ccl;
 
@@ -51,33 +59,88 @@ payload_t HydrogenWrapper::secureRnd(size_t lenBytes) const
     return ret;
 }
 
-payload_t HydrogenWrapper::setupDH()
+payload_t HydrogenWrapper::setupDH(payload_t const &remotePayload, ICryptoWrapper::Role role)
 {
     // Generate private, public key pair for DH Key exchange
     // return the public key as flat byte stream. For storing
     // the internal state (i.e. the private key), add a class
     // member and store it for usage in finishDH
 
-    // Replace dummy implementation
-    payload_t ret(32); // 32 bytes/256 bits all zeros
+    hydro_kx_keygen(&keyExKeyPair);
 
-    return ret;
+    if (role == ICryptoWrapper::Role::CLIENT)
+    {
+        // Client initiates DH
+        payload_t ret(hydro_kx_XX_PACKET1BYTES);
+        if (hydro_kx_xx_1(&keyExState, ret.data(), PSK) != 0)
+        {
+            throw runtime_error("Failed to create DH request.");
+        }
+        return ret;
+    }
+    else
+    {
+        payload_t ret(hydro_kx_XX_PACKET2BYTES);
+        // Server initiates DH using init data received from client
+        if ((remotePayload.size() != hydro_kx_XX_PACKET1BYTES) ||
+            (hydro_kx_xx_2(&keyExState, ret.data(), remotePayload.data(), PSK, &keyExKeyPair) != 0))
+        {
+            throw runtime_error("Failed to create DH response.");
+        }
+        return ret;
+    }
 }
 
-payload_t HydrogenWrapper::finishDH(payload_t &remoteKey)
+payload_t HydrogenWrapper::updateDH(payload_t const &remotePayload, ICryptoWrapper::Role role)
 {
     // generate shared secret out of own (stored) private key and remote
     // public key. Out of the shared secret generate the symmetric key,
     // and return it
 
-    // Replace dummy implementation
-    if (remoteKey != remoteKey){}; // silence compiler
-    payload_t ret(32);
-
-    return ret;
+    if (role == ICryptoWrapper::Role::CLIENT)
+    {
+        payload_t ret(hydro_kx_XX_PACKET3BYTES);
+        if ((remotePayload.size() != hydro_kx_XX_PACKET2BYTES) ||
+            (hydro_kx_xx_3(&keyExState, &keyPair, ret.data(), nullptr, remotePayload.data(), PSK, &keyExKeyPair) != 0))
+        {
+            throw runtime_error("updating DH (server) failed");
+        }
+        return ret;
+    }
+    else
+    {
+        payload_t ret; // empty return payload (server case)
+        return ret;
+    }
 }
 
-std::pair<payload_t, payload_t> HydrogenWrapper::encrypt(std::string const &plainText, payload_t const &symmKey) const
+
+payload_t HydrogenWrapper::finishDH(payload_t const &remotePayload, ICryptoWrapper::Role role)
+{
+    // generate shared secret out of own (stored) private key and remote
+    // public key. Out of the shared secret generate the symmetric key,
+    // and return it
+
+    if (role == ICryptoWrapper::Role::SERVER)
+    {
+        if ((remotePayload.size() != hydro_kx_XX_PACKET3BYTES) ||
+            (hydro_kx_xx_4(&keyExState, &keyPair, nullptr, remotePayload.data(), PSK) != 0))
+        {
+            throw runtime_error("finishing DH (server) failed");
+        }
+
+        payload_t ret(begin(keyPair.rx), begin(keyPair.rx) + hydro_kx_SESSIONKEYBYTES);
+        return ret;
+    }
+    else
+    {
+        // We only use one symmetric key: the tx key of the client, which equals the rx key of the server
+        payload_t ret(begin(keyPair.tx), begin(keyPair.tx) + hydro_kx_SESSIONKEYBYTES);
+        return ret;
+    }
+}
+
+pair<payload_t, payload_t> HydrogenWrapper::encrypt(string const &plainText, payload_t const &symmKey) const
 {
     // generate random IV, encrypt plain text using IV and symmetric key
     // return IV and ciphertext in ret
@@ -88,13 +151,13 @@ std::pair<payload_t, payload_t> HydrogenWrapper::encrypt(std::string const &plai
     
     if (hydro_secretbox_encrypt(ciphertext.data(), plainText.data(), plainText.size(), 0, CONTEXT, symmKey.data()) != 0)
     {
-        throw std::runtime_error("encryption failed");
+        throw runtime_error("encryption failed");
     }
     
     return pair(IV, ciphertext);
 }
 
-std::string HydrogenWrapper::decrypt(std::pair<payload_t, payload_t> const &ivAndCipherText, payload_t const &symmKey) const
+string HydrogenWrapper::decrypt(pair<payload_t, payload_t> const &ivAndCipherText, payload_t const &symmKey) const
 {
     // decrypt ciphertext using IV and symmetric key, convert it into a string
     // return the string
@@ -106,7 +169,7 @@ std::string HydrogenWrapper::decrypt(std::pair<payload_t, payload_t> const &ivAn
      // silence compiler
     if (hydro_secretbox_decrypt(plaintext.data(), ciphertext.data(), ciphertext.size(), 0, CONTEXT, symmKey.data()) != 0)
     {
-        throw std::runtime_error("decryption failed");
+        throw runtime_error("decryption failed");
     }
     string ret(begin(plaintext), end(plaintext)); 
     return ret;
