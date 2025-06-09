@@ -1,6 +1,9 @@
 #include <stdexcept>
 
 #include "HydrogenWrapper.h"
+
+//#define CONTEXT "krypto01"
+static constexpr char const * CONTEXT = "krypto01";
 	
 using namespace std;
 using namespace ccl;
@@ -25,9 +28,13 @@ payload_t HydrogenWrapper::hash(string const &in) const
     // an arbitrary hashing algorithm the library provides
     // and return that digest
 
-    // Replace dummy implementation
-    if (in != in){}; // silence compiler
+    
     payload_t ret(32); // 31 bytes, all zeros
+    // generic hash without key
+    if (hydro_hash_hash(ret.data(), ret.size(), in.data(), in.size(), CONTEXT, NULL) != 0)
+    {
+        throw runtime_error("hash failed");
+    }
 
     return ret;
 }
@@ -39,6 +46,7 @@ payload_t HydrogenWrapper::secureRnd(size_t lenBytes) const
 
     // Replace dummy implementation
     payload_t ret(lenBytes); // all zeros
+    hydro_random_buf(ret.data(), ret.size());
 
     return ret;
 }
@@ -75,10 +83,14 @@ std::pair<payload_t, payload_t> HydrogenWrapper::encrypt(std::string const &plai
     // return IV and ciphertext in ret
 
     // Replace dummy implementation
-    payload_t IV = secureRnd(16);
-    if (symmKey != symmKey){}; // silence compiler
-    payload_t ciphertext(begin(plainText), end(plainText)); // fixme ciphertext is same as plain text here
-
+    payload_t IV; // = secureRnd(16);
+    payload_t ciphertext(hydro_secretbox_HEADERBYTES + plainText.size());
+    
+    if (hydro_secretbox_encrypt(ciphertext.data(), plainText.data(), plainText.size(), 0, CONTEXT, symmKey.data()) != 0)
+    {
+        throw std::runtime_error("encryption failed");
+    }
+    
     return pair(IV, ciphertext);
 }
 
@@ -88,10 +100,14 @@ std::string HydrogenWrapper::decrypt(std::pair<payload_t, payload_t> const &ivAn
     // return the string
     payload_t IV = ivAndCipherText.first;
     payload_t ciphertext = ivAndCipherText.second;
+    payload_t plaintext(ciphertext.size()-hydro_secretbox_HEADERBYTES);
 
     // Replace dummy implementation
-    if (symmKey != symmKey){}; // silence compiler
-    string ret(begin(ciphertext), end(ciphertext)); // plain text equals ciphertext
-
+     // silence compiler
+    if (hydro_secretbox_decrypt(plaintext.data(), ciphertext.data(), ciphertext.size(), 0, CONTEXT, symmKey.data()) != 0)
+    {
+        throw std::runtime_error("decryption failed");
+    }
+    string ret(begin(plaintext), end(plaintext)); 
     return ret;
 }
