@@ -81,6 +81,7 @@ target_link_libraries(c_crypto_prot PRIVATE fmt::fmt libtomcrypt hydrogen)
 add_executable(c_crypto_prot_test 
     test/c_crypto_prot_test.cpp
     src/LibTomWrapper.cpp
+    src/HydrogenWrapper.cpp
     src/SendReceive.cpp
     src/UdpSocket.cpp
     )
@@ -94,7 +95,7 @@ endif()
 target_include_directories(c_crypto_prot_test PRIVATE 
     ${CMAKE_SOURCE_DIR}/src)
 
-target_link_libraries(c_crypto_prot_test PRIVATE Catch2::Catch2WithMain fmt::fmt libtomcrypt)
+target_link_libraries(c_crypto_prot_test PRIVATE Catch2::Catch2WithMain fmt::fmt libtomcrypt hydrogen)
 add_test(NAME c_crypto_prot_test COMMAND c_crypto_prot_test)
 
 # Custom target to run tests and generate coverage report 

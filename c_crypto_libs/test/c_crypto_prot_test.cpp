@@ -3,6 +3,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include "LibTomWrapper.h"
 #include "SendReceive.h"
+#include "HydrogenWrapper.h"
 
 using namespace std;
 using namespace ccl;
@@ -14,6 +15,8 @@ public:
     {
         // init code
         LibTomWrapper::init();
+        HydrogenWrapper::init();
+        
     }
 
     ~TestFixture()
@@ -86,3 +89,15 @@ TEST_CASE( "Sending and Receiving Udp Packets works properly" )
     REQUIRE(optRxMessage2.has_value() == false);
 }
 
+TEST_CASE( "Ensure that encrypting and decrypring with LibHydrogen works properly" )
+{
+    auto lhw = HydrogenWrapper::createInstance();
+
+    string plainText="This is my secret message.";
+    payload_t key = lhw->secureRnd(32);
+
+    auto ivAndCipherText = lhw->encrypt(plainText, key);
+    string decryptedText = lhw->decrypt(ivAndCipherText, key);
+
+    REQUIRE(plainText == decryptedText);
+}
