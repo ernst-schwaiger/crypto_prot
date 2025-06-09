@@ -33,11 +33,11 @@ void SendReceive::send(payload_t const &payload) const
     }
 }
 
-std::optional<payload_t> SendReceive::receive(uint16_t timeoutMS) const
+payload_t SendReceive::receive(uint16_t timeoutMS) const
 {
     rx_buffer_t buf;
     struct sockaddr_in remoteSockAddr;
-    optional<payload_t> ret;
+    payload_t ret;
     
     // Polling for incoming data until there is nothing left to receive or an error happens 
     for (;;)
@@ -102,52 +102,52 @@ payload_t SendReceive::createCipherTextAndHash(uint8_t wrapperId, payload_t cons
     return payload;
 }
 
-pair<pair<payload_t, payload_t>, payload_t> SendReceive::parseCipherTextAndHash(uint8_t wrapperId, optional<payload_t> const &optClientCipherHash) const
+pair<pair<payload_t, payload_t>, payload_t> SendReceive::parseCipherTextAndHash(uint8_t wrapperId, payload_t const &clientCipherHash) const
 {
     // Validate first four bytes: Message Id, Wrapper Id, Hash Length, IV Length
-    if (optClientCipherHash->size() <= 4)
+    if (clientCipherHash.size() <= 4)
     {
         throw runtime_error("Received truncated Client response");
     }
 
-    if (optClientCipherHash->at(0) != MSG_ID_CIPHERTEXT_HASH)
+    if (clientCipherHash.at(0) != MSG_ID_CIPHERTEXT_HASH)
     {
         throw runtime_error("Received incorrect message id from Client");
     }
 
-    if (optClientCipherHash->at(1) != wrapperId)
+    if (clientCipherHash.at(1) != wrapperId)
     {
         throw runtime_error("Received incorrect wrapper id from Client");
     }
 
-    uint8_t hashLength = optClientCipherHash->at(2);
-    uint8_t ivLength = optClientCipherHash->at(3);
+    uint8_t hashLength = clientCipherHash.at(2);
+    uint8_t ivLength = clientCipherHash.at(3);
 
-    if (optClientCipherHash->size() <= (4U + hashLength + ivLength))
+    if (clientCipherHash.size() <= (4U + hashLength + ivLength))
     {
         throw runtime_error("Received truncated Client response");
     }
 
-    payload_t hash(begin(*optClientCipherHash) + 4, begin(*optClientCipherHash) + 4 + hashLength);
-    payload_t IV(begin(*optClientCipherHash) + 4 + hashLength, begin(*optClientCipherHash) + 4 + hashLength + ivLength);
-    payload_t ciphertext(begin(*optClientCipherHash) + 4 + hashLength + ivLength, end(*optClientCipherHash));
+    payload_t hash(begin(clientCipherHash) + 4, begin(clientCipherHash) + 4 + hashLength);
+    payload_t IV(begin(clientCipherHash) + 4 + hashLength, begin(clientCipherHash) + 4 + hashLength + ivLength);
+    payload_t ciphertext(begin(clientCipherHash) + 4 + hashLength + ivLength, end(clientCipherHash));
 
     return pair(pair(IV, ciphertext), hash);
 }
 
-payload_t SendReceive::parseDHRequest(uint8_t wrapperId, optional<payload_t> const &optDHRequest) const
+payload_t SendReceive::parseDHRequest(uint8_t wrapperId, payload_t const &dhRequest) const
 {
-    return parseDHMessage(MSG_ID_DH_REQUEST, wrapperId, optDHRequest);
+    return parseDHMessage(MSG_ID_DH_REQUEST, wrapperId, dhRequest);
 }
 
-payload_t SendReceive::parseDHResponse(uint8_t wrapperId, optional<payload_t> const &optDHResponse) const
+payload_t SendReceive::parseDHResponse(uint8_t wrapperId, payload_t const &dhResponse) const
 {
-    return parseDHMessage(MSG_ID_DH_RESPONSE, wrapperId, optDHResponse);
+    return parseDHMessage(MSG_ID_DH_RESPONSE, wrapperId, dhResponse);
 }
 
-payload_t SendReceive::parseDHUpdate(uint8_t wrapperId, std::optional<payload_t> const &optDHUpdate) const
+payload_t SendReceive::parseDHUpdate(uint8_t wrapperId, payload_t const &dhUpdate) const
 {
-    return parseDHMessage(MSG_ID_DH_UPDATE, wrapperId, optDHUpdate);
+    return parseDHMessage(MSG_ID_DH_UPDATE, wrapperId, dhUpdate);
 }
 
 payload_t SendReceive::createMessage(uint8_t msgId, uint8_t wrapperId, payload_t const &remotePayload) const
@@ -160,25 +160,25 @@ payload_t SendReceive::createMessage(uint8_t msgId, uint8_t wrapperId, payload_t
     return payload;
 }
 
-payload_t SendReceive::parseDHMessage(uint8_t msgId, uint8_t wrapperId, optional<payload_t> const &optDHReqResponse) const
+payload_t SendReceive::parseDHMessage(uint8_t msgId, uint8_t wrapperId, payload_t const &dhReqResponse) const
 {
     // Validate first two bytes: Message Id and Wrapper Id
-    if (optDHReqResponse->size() <= 2)
+    if (dhReqResponse.size() <= 2)
     {
         throw runtime_error("Received truncated Server response");
     }
 
-    if (optDHReqResponse->at(0) != msgId)
+    if (dhReqResponse.at(0) != msgId)
     {
         throw runtime_error("Received incorrect message id from Server");
     }
 
-    if (optDHReqResponse->at(1) != wrapperId)
+    if (dhReqResponse.at(1) != wrapperId)
     {
         throw runtime_error("Received incorrect wrapper id from Server");
     }
 
     // Rest of message is public key of server
-    payload_t ret(begin(*optDHReqResponse) + 2, end(*optDHReqResponse));
+    payload_t ret(begin(dhReqResponse) + 2, end(dhReqResponse));
     return ret;
 }

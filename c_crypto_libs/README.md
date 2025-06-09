@@ -54,5 +54,3 @@ Usage: ./c_crypto_prot [-l <ipaddr>] [-r <ipaddr>] [-s] [-t|-h]<message>
 * Clean up logging messages
 * Test on ARM platform
 * Extract Metrics: Performance for key generation, symmetric encryption, Memory consumption
-* Fix reception of optional rx payload when rx is blocking anyways.
-* Fix transmission of zero length data in LibTomWrapper.

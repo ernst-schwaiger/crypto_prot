@@ -79,15 +79,14 @@ TEST_CASE( "Sending and Receiving Udp Packets works properly" )
     SendReceive sr("127.0.0.1", 4200, "127.0.0.1", 4200);
     sr.send(byteMsg);
 
-    optional<payload_t> optRxMessage = sr.receive(0);
-    REQUIRE(optRxMessage.has_value());
+    payload_t rxMsg = sr.receive(0);
 
-    string rxMessage(begin(*optRxMessage), end(*optRxMessage));
+    string rxMessage(begin(rxMsg), end(rxMsg));
     REQUIRE(myMessage == rxMessage);
 
     // Nothing more to receive
-    optional<payload_t> optRxMessage2 = sr.receive(0);
-    REQUIRE(optRxMessage2.has_value() == false);
+    payload_t rxMessage2 = sr.receive(0);
+    REQUIRE(rxMessage2.empty());
 }
 
 TEST_CASE( "Ensure that encrypting and decrypring with LibHydrogen works properly" )

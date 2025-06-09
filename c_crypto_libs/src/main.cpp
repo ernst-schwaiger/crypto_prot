@@ -55,6 +55,11 @@ static void client(ICryptoWrapper *pCW, SendReceive *pSR, string messageToSend)
 {
     ICryptoWrapper::Role const role = ICryptoWrapper::Role::CLIENT;
 
+    if (messageToSend.empty())
+    {
+        throw runtime_error("Error: trying to send an empty message.");
+    }
+
     // Initiate Diffie-Hellman Key Exchange, send request to Server
     payload_t clientDHRequestData = pCW->setupDH(payload_t(), role);
     payload_t dhRequestMsg = pSR->createDHRequest(pCW->getId(), clientDHRequestData);
@@ -62,9 +67,9 @@ static void client(ICryptoWrapper *pCW, SendReceive *pSR, string messageToSend)
     pSR->send(dhRequestMsg);
 
     // Process Diffie-Hellman response Message from Server
-    optional<payload_t> optdhResponseMsg = pSR->receive(NO_TIMEOUT);
-    printPayload(*optdhResponseMsg, "Received DH response message:");
-    payload_t dhResponseData = pSR->parseDHResponse(pCW->getId(), optdhResponseMsg);
+    payload_t dhResponseMsg = pSR->receive(NO_TIMEOUT);
+    printPayload(dhResponseMsg, "Received DH response message:");
+    payload_t dhResponseData = pSR->parseDHResponse(pCW->getId(), dhResponseMsg);
 
     // Optional: Send Diffie-Hellman Update Message back to Server
     payload_t dhUpdateData = pCW->updateDH(dhResponseData, role);
@@ -98,28 +103,28 @@ static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
 
     for(;;)
     {
-        optional<payload_t> optRxMsg = pSR->receive(NO_TIMEOUT);
+        payload_t rxMsg = pSR->receive(NO_TIMEOUT);
 
-        if (optRxMsg.has_value() && optRxMsg->size() >= 2)
+        if (rxMsg.size() >= 2)
         {
             // Second byte in received payload indicates the wrapper we have to use
-            uint8_t cwIdx = optRxMsg->at(1);
+            uint8_t cwIdx = rxMsg.at(1);
             if (cwIdx >= 2)
             {
-                runtime_error("Unknown handler field encountered in message.");
+                throw runtime_error("Unknown handler field encountered in message.");
             }
 
             ICryptoWrapper *pCW = CWs[cwIdx].get();
             
             // First byte indicates the type of message we received
-            switch(optRxMsg->at(0))
+            switch(rxMsg.at(0))
             {
                 // Diffie-Hellman request arrived from client
                 case MSG_ID_DH_REQUEST:
                 {
-                    printPayload(*optRxMsg, "Received DH request message:");
+                    printPayload(rxMsg, "Received DH request message:");
                     // Setup internal state using DH data from client
-                    remoteDHData = pSR->parseDHRequest(pCW->getId(), optRxMsg);
+                    remoteDHData = pSR->parseDHRequest(pCW->getId(), rxMsg);
                     localDHData = pCW->setupDH(*remoteDHData, role);
 
                     // Create DH response message, send back to client
@@ -133,8 +138,8 @@ static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
                 case MSG_ID_DH_UPDATE:
                 {
                     // Parse update message data, store it in remoteDHData
-                    printPayload(*optRxMsg, "Received DH update message:");
-                    remoteDHData = pSR->parseDHUpdate(pCW->getId(), optRxMsg);
+                    printPayload(rxMsg, "Received DH update message:");
+                    remoteDHData = pSR->parseDHUpdate(pCW->getId(), rxMsg);
                     break;
                 }
 
@@ -143,11 +148,11 @@ static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
                 case MSG_ID_CIPHERTEXT_HASH:
                     if (localDHData.has_value() && remoteDHData.has_value())
                     {
-                        printPayload(*optRxMsg, "Received ciphertext and hash:");
+                        printPayload(rxMsg, "Received ciphertext and hash:");
                         // derive symmetric key
                         payload_t symKey = pCW->finishDH(*remoteDHData, role);
                         // parse IV, ciphertext, hash
-                        pair<pair<payload_t, payload_t>, payload_t> ivCipherTextHash = pSR->parseCipherTextAndHash(pCW->getId(), optRxMsg);
+                        pair<pair<payload_t, payload_t>, payload_t> ivCipherTextHash = pSR->parseCipherTextAndHash(pCW->getId(), rxMsg);
 
                         // decrypt ciphertext
                         std::string plainText = pCW->decrypt(ivCipherTextHash.first, symKey);
