@@ -120,10 +120,24 @@ payload_t LibTomWrapper::finishDH(payload_t &remoteKey)
     uint8_t dummy;
     unsigned long outLen = 0;
     ecc_shared_secret(&m_ecdhLocalKey, &m_ecdhRemoteKey, &dummy, &outLen);
-    payload_t ret(outLen);
-    if (ecc_shared_secret(&m_ecdhLocalKey, &m_ecdhRemoteKey, ret.data(), &outLen) != CRYPT_OK)
+    payload_t secret(outLen);
+    if (ecc_shared_secret(&m_ecdhLocalKey, &m_ecdhRemoteKey, secret.data(), &outLen) != CRYPT_OK)
     {
         throw runtime_error("Could not generate shared secret.");
+    }
+
+    // create an symmetric key out of the shared secret
+    int hash_idx = find_hash("sha256");
+    if (hash_idx < 0)
+    {
+        throw runtime_error("Could not get libtom sha256.");
+    }
+
+    payload_t ret(32);
+
+    if (hkdf(hash_idx, nullptr, 0, nullptr, 0, secret.data(), secret.size(), ret.data(), ret.size()) != CRYPT_OK)
+    {
+        throw runtime_error("Could not derive AES key out of shared secret.");
     }
 
     return ret;
@@ -131,7 +145,7 @@ payload_t LibTomWrapper::finishDH(payload_t &remoteKey)
 
 std::pair<payload_t, payload_t> LibTomWrapper::encrypt(std::string const &plainText, payload_t const &symmKey) const
 {
-    payload_t IV = secureRnd(32);
+    payload_t IV = secureRnd(16); // AES Block Size
     payload_t ciphertext(plainText.size());
     symmetric_CTR ctr;
 
