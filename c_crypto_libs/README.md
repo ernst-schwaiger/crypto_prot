@@ -51,9 +51,6 @@ Usage: ./c_crypto_prot [-l <ipaddr>] [-r <ipaddr>] [-s] [-t|-h]<message>
 
 ## TODO
 
-* Clean up logging messages
-* Ensure Usage Page is displayed when running w/o parameters
-
 ## Slide Deck Input
 
 ### Github Metrics
@@ -92,7 +89,7 @@ The generic interfaces also allow an extension of the library by client code. Cl
 
 Due to the modular nature, client code can pick primitives from each class and tie them together for setting up their crypto application. Users have to know whether a particular primitive can
 be used in a secure way for a given purpose (e.g. MD5, MD4 are also supported by LibTomCrypt),
-or whether the combination of two paricular primitives is secure.
+or whether the combination of two particular primitives is secure.
 
 The library comes with a comprehensive 230 page developers guide containing lots of examples,
 getting code to compile and run is fairly easy.
@@ -115,7 +112,7 @@ Our concept to use both libraries:
 * Client uses a command line parameter to determine which library to use
 * Server detects from clients request message which library to use
 
-`ICryptoWrapper` interface decouples protocol implementation from the library idiosyncracies. For
+`ICryptoWrapper` interface decouples protocol implementation from the library idiosyncrasies. For
 each of the libraries a wrapper class implements that interface. Once the client/server application
 knows which library to use, it fetches the appropriate instance of `ICryptoWrapper`, then uses it
 to implement the protocol.

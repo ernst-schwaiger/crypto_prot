@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fmt/core.h>
 
 #include "ConfigParser.h"
 
@@ -14,8 +15,10 @@ std::optional<config_t> ccl::getConfigFromOptions(int argc, char *argv[])
 
     bool useLibTom = false;
     bool useHydrogen = false;
+    bool isServer = false;
+    bool isClient = false;
 
-    while ((c = getopt (argc, argv, "l:r:sth")) != -1)
+    while ((c = getopt (argc, argv, "l:r:scth")) != -1)
     {
         switch (c)
         {
@@ -26,7 +29,10 @@ std::optional<config_t> ccl::getConfigFromOptions(int argc, char *argv[])
             parsed_values.remote_ipaddr = optarg;
         break;
         case 's':
-            parsed_values.isServer = true;
+            isServer = true;
+        break;
+        case 'c':
+            isClient = true;
         break;
         case 't':
             useLibTom = true;
@@ -39,15 +45,15 @@ std::optional<config_t> ccl::getConfigFromOptions(int argc, char *argv[])
         {
             if (optopt == 'l' || optopt == 'r')
             {
-                cerr << "Option -" << optopt << "requires an argument\n";
+                cerr << fmt::format("Option -{} requires an argument.\n", optopt);
             }
             else if (isprint(optopt))
             {
-                cerr << "Unknown option -" << optopt << ".\n";
+                cerr << fmt::format("Unknown option -{}.\n", optopt);
             }
             else
             {
-                cerr << "Unknown option character -" << static_cast<uint16_t>(optopt) << ".\n";
+                cerr << fmt::format("Unknown option character -{}.\n", static_cast<uint16_t>(optopt));
             }
             error = true;
             break;
@@ -61,6 +67,16 @@ std::optional<config_t> ccl::getConfigFromOptions(int argc, char *argv[])
     for (int i = optind; i < argc; i++)
     { 
         parsed_values.freeParams.push_back(argv[i]);
+    }
+
+    if (isClient == isServer)
+    {
+        cerr << "Either use -c for client mode or -s for server mode.\n";
+        error = true;
+    }
+    else
+    {
+        parsed_values.isServer = isServer;
     }
 
     // 
@@ -85,11 +101,11 @@ std::optional<config_t> ccl::getConfigFromOptions(int argc, char *argv[])
 
 void ccl::printUsage(char *argv0)
 {
-    cerr << "Usage: " << argv0 << " [-l <ipaddr>] [-r <ipaddr>] [-s] [-t|-h]<message>\n";
-    cerr << "   -l <ipaddr>        local IPV4 address, default is " << DEFAULT_IP_ADDRESS <<".\n";
-    cerr << "   -r <ipaddr>        remote IPV4 address, default is " << DEFAULT_IP_ADDRESS <<".\n";
-    cerr << "   -s                 assume server role, if left out assume client role\n";
-    cerr << "   [-t|-h]            use LibTomCrypt or Hydrogen, only relevant in client role, default is -t\n";
-    cerr << "   <message>          message to send, only relevant in client role\n";
+    cerr << fmt::format("Usage: {} -s|-c [-l <ipaddr>] [-r <ipaddr>] [-t|-h] [<message>]\n", argv0);
+    cerr << fmt::format("   -s|-c              run either in server or client mode.\n");
+    cerr << fmt::format("   -l <ipaddr>        local IPV4 address, default is {}.\n", DEFAULT_IP_ADDRESS);
+    cerr << fmt::format("   -r <ipaddr>        remote IPV4 address, default is {}.\n", DEFAULT_IP_ADDRESS);
+    cerr << fmt::format("   [-t|-h]            use LibTomCrypt or Hydrogen, only relevant in client role, default is -t\n");
+    cerr << fmt::format("   <message>          message to send, only relevant in client role\n");
 }
 

@@ -1,9 +1,6 @@
 #include <iostream>
 #include <iomanip>
-#include <array>
-
-#include <stdio.h>
-#include <hydrogen.h>
+#include <fmt/core.h>
 
 #include "ConfigParser.h"
 #include "LibTomWrapper.h"
@@ -101,6 +98,8 @@ static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
     optional<payload_t> localDHData;
     optional<payload_t> remoteDHData;
 
+    cout << "Listening to client requests...\n";
+
     for(;;)
     {
         payload_t rxMsg = pSR->receive(NO_TIMEOUT);
@@ -162,11 +161,11 @@ static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
                         if (hash == ivCipherTextHash.second)
                         {
                             // Hash is correct
-                            cout << "Server received msg: \"" << plainText << "\", successfully compared hash.\n";
+                            cout << fmt::format("Server received msg: \"{}\", successfully compared hash.\n", plainText);
                         }
                         else
                         {
-                            cout << "Received hash differs from calculated on. Am I being hacked?\n";
+                            cout << "Received hash differs from calculated one. Am I being hacked?\n";
                         }
 
                         // Reset state data for subsequent client calls
@@ -175,7 +174,7 @@ static void server(std::unique_ptr<ICryptoWrapper> CWs[], SendReceive *pSR)
                     }
                     break;
                 default:
-                    throw runtime_error("Unknown message type encountered");
+                    throw runtime_error(fmt::format("Unknown message type: {} encountered", static_cast<uint16_t>(rxMsg.at(0))));
             }
         }
     }
