@@ -100,7 +100,16 @@ The workaround is to build LibTomMath upfront. After that build, our own applica
 
 #### LibHydrogen
 
-FIXME Stefan
+The Hydrogen library is a small, easy-to-use, hard-to-misuse cryptographic library for constrained environments.
+
+It provides a high level API for cryptographic operations instead of low level primitives. 
+This is also the main difference to libtomcrypt, where you have different ciphers, hashes etc.
+libhydrogen offers exactly one hash function and one cipher for symmetric encryption. Both uses the Gimli permutation as a building block.
+That means you don't have AES or SHA-1 etc as an option to use.
+
+The cryotgraphic functions are build so that you can make as little mistakes as possible. For example in the encryption function you do not have to provide the IV.
+
+The limited options in libhydrogen lead to a problem during the implementation of the key exchange. The libhydrogen key exchange function sends one message more the our implemtation in libtomcrypt, which used only two messages.
 
 ### Application Architecture
 
