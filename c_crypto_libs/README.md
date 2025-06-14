@@ -131,7 +131,7 @@ or server part of the protocol shall be executed is controlled by a command line
 For message transmission, the application uses UDP Posix sockets, which are also wrapped in dedicated
 classes for easier usage. 
 
-![Class Diagram](CryptoLibs.drawio.svg)
+![Class Diagram](CryptoLibs.drawio.png)
 
 ### Application Protocol
 
