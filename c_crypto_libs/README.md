@@ -48,3 +48,97 @@ Usage: ./c_crypto_prot -s|-c [-l <ipaddr>] [-r <ipaddr>] [-t|-h] [<message>]
    [-t|-h]            use LibTomCrypt or Hydrogen, only relevant in client role, default is -t
    <message>          message to send, only relevant in client role
 ```
+
+## Slide Deck Input
+
+### Github Metrics
+
+| Category | LibTomCrypt | LibHydrogen 
+|----------|--------|------------|
+| Github | https://github.com/libtom/libtomcrypt | https://github.com/jedisct1/libhydrogen
+| License | LibTom License (permissive) | ISC License (permissive)
+| Contributors total/active | 53/1 | 26/1
+| Open bugs | 2 | 0
+| Open PRs 2025/Total| 1/14 | 0/0
+| Commits 2025/total| 40/2400 | 4/390
+| Lines of Code | 60k | 3k
+| Test Line Coverage | ~90% | n/a
+| Stars | 1.7k | 700
+| Forks | 480 | 105
+
+### Our Experience with Libraries
+
+#### LibTomCrypt
+
+LibTomCrypt is a portable ISO C (C99?) library providing cryptographic primitives for implementing cryptosystems. 
+Key Features:
+- Symmetric ciphers
+- One-way hashes
+- Pseudo random number generators
+- Public key cryptography
+
+For each type of primitive it provides multiple implementations, e.g public key cryptography based on RSA or Elliptic curves, >30 hashing functions, >20 symmetric ciphers which can be combined with
+several modes of operation.
+
+The interfaces are kept very uniform for each type of primitive, e.g. switching to a different symmetric cipher only requires little change in the client code.
+
+The generic interfaces also allow an extension of the library by client code. Client code can register their own implementations, which then can be used like the already built in functions
+(Use case: Random generator function using HW-specific RNG).
+
+Due to the modular nature, client code can pick primitives from each class and tie them together for setting up their crypto application. Users have to know whether a particular primitive can
+be used in a secure way for a given purpose (e.g. MD5, MD4 are also supported by LibTomCrypt),
+or whether the combination of two particular primitives is secure.
+
+The library comes with a comprehensive 230 page developers guide containing lots of examples,
+getting code to compile and run is fairly easy.
+
+One very specific problem we ran into was that LibTomCrypt is built on top of LibTomMath. We failed to integrate both dependencies into a CMake file, such that LibTomMath gets built before LibTomCrypt and that the LibTomCrypt build finds the LibTomMath library as its own dependency.
+We did not find any CMake examples on github which did this and using LLMs also did not help.
+The workaround is to build LibTomMath upfront. After that build, our own application builds (only defining LibTomMath as dependency in the CMake file).
+
+#### LibHydrogen
+
+The Hydrogen library is a small, easy-to-use, hard-to-misuse cryptographic library for constrained environments.
+
+It provides a high level API for cryptographic operations instead of low level primitives. 
+This is also the main difference to libtomcrypt, where you have different ciphers, hashes etc.
+libhydrogen offers exactly one hash function and one cipher for symmetric encryption. Both uses the Gimli permutation as a building block.
+That means you don't have AES or SHA-1 etc as an option to use.
+
+The cryotgraphic functions are build so that you can make as little mistakes as possible. For example in the encryption function you do not have to provide the IV.
+
+The limited options in libhydrogen lead to a problem during the implementation of the key exchange. The libhydrogen key exchange function sends one message more the our implemtation in libtomcrypt, which used only two messages.
+
+### Application Architecture
+
+LibTomCrypt and LibHydrogen do not provide common primitives for hashing, encryption, or key exchange.
+Getting e.g. a LibHydrogen client to talk to a LibTomCrypt server is not possible.
+
+Our concept to use both libraries:
+* Both client and server use both libraries to implement the protocol
+* Exchanged messages, and number of exchanged messages are different in both variants
+* Client uses a command line parameter to determine which library to use
+* Server detects from clients request message which library to use
+
+`ICryptoWrapper` interface decouples protocol implementation from the library idiosyncrasies. For
+each of the libraries a wrapper class implements that interface. Once the client/server application
+knows which library to use, it fetches the appropriate instance of `ICryptoWrapper`, then uses it
+to implement the protocol.
+
+Both client and server parts of the protocol are implemented in the same binary. Whether the client
+or server part of the protocol shall be executed is controlled by a command line parameter.
+
+For message transmission, the application uses UDP Posix sockets, which are also wrapped in dedicated
+classes for easier usage. 
+
+![Class Diagram](CryptoLibs.drawio.svg)
+
+### Application Protocol
+
+* The client sends a "Diffie-Hellman request message" to the server, which contains the public part of the DH key pair.
+* The server responds with a "Diffie-Hellman response message", which contains the public key of the server.
+* (Only LibHydrogen) The client sends a "Diffie-Hellman update message" to the server
+* Both client and server derive a symmetric key from the shared secret
+* The client calculates a hash on a secret message to send, encrypts the message using the symmetric key, then sends both to the server
+* The server decrypts the secret message, calculates the hash on the clear text, and prints the clear text message on the console if own hash and received hash are matching
+
