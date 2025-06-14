@@ -7,8 +7,6 @@ import java.io.IOException;
 import java.net.Socket;
 import java.util.Optional;
 
-import net.its26.Common.SessionResponseInfo;
-
 public class Mallory 
 {
     private static final byte[] STOLEN_SESSION_KEY = 
@@ -27,8 +25,6 @@ public class Mallory
         (byte)0x60, (byte)0xCF, (byte)0x1F, (byte)0x60, (byte)0x35, (byte)0x8D, (byte)0xF6, (byte)0xF0, 
         (byte)0x79, (byte)0xB2, (byte)0xF7, (byte)0x16, (byte)0x25, (byte)0xE3, (byte)0xE3, (byte)0x1A
     };
-
-
 
     public static void main(String[] args) 
     {

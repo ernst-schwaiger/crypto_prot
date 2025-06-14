@@ -76,11 +76,11 @@ public class Server
 
                 if (msgId == Common.NHS.SESSION_KEY_REQUEST.id)
                 {
-                        Optional<byte[]> optResponse = processSessionKeyRequest(data);
-                        if (optResponse.isPresent())
-                        {
-                            Common.sendMessage(optResponse.get(), clientSocket.getOutputStream());
-                        }
+                    Optional<byte[]> optResponse = processSessionKeyRequest(data);
+                    if (optResponse.isPresent())
+                    {
+                        Common.sendMessage(optResponse.get(), clientSocket.getOutputStream());
+                    }
                 }
 
                 // Close the client socket once the communication is done
@@ -114,11 +114,11 @@ public class Server
                     byte[] sessionKeyData = optSessionKey.get().getEncoded();
 
                     ret = Common.generateSessionKeyResponse(optSessionInfo.get().userLocal, 
-                            optSessionInfo.get().userRemote, 
-                            optNonce.get().intValue(), 
-                            sessionKeyData, 
-                            optUser1.get().userServerKey, 
-                            optUser2.get().userServerKey);
+                        optSessionInfo.get().userRemote, 
+                        optNonce.get().intValue(), 
+                        sessionKeyData, 
+                        optUser1.get().userServerKey, 
+                        optUser2.get().userServerKey);
                 }
             }
         }
